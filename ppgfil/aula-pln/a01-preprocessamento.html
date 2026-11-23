@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 1 · Pré-processamento de texto</title><link rel="stylesheet" href="estilo.css"></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · PLN e Transformers</span></header>
+<main>
+<p class="tag">Atividade 1 · Fundamentos do PLN</p>
+<h1>Pré-processamento: o que se ganha e o que se perde ao "limpar" um texto</h1>
+<section class="caixa azul"><h2>Contexto</h2>
+<p>Antes de virar números, o texto bruto costuma passar por um <b>pipeline de pré-processamento</b>: minúsculas, remoção de ruído (URLs, HTML, símbolos), tokenização, remoção de palavras vazias (<i>stopwords</i>) e redução das palavras a uma forma básica por <b>radicalização</b> (<i>stemming</i>) ou <b>lematização</b>. Isso reduz o vocabulário e o ruído (JURAFSKY; MARTIN, 2024, cap. 2; BIRD; KLEIN; LOPER, 2009).</p>
+</section>
+<section class="painel">
+<div class="linha"><div><label>Idioma</label> <select id="lang"><option value="pt">português</option><option value="en">inglês (exemplo das notas)</option></select></div>
+<div><button class="sec" onclick="exemplo()">texto de exemplo</button><button class="sec" onclick="negacao()">exemplo com negação</button></div></div>
+<textarea id="txt"></textarea>
+<h3>Escolha as etapas (na ordem do pipeline)</h3>
+<div class="linha" style="gap:.4rem">
+<label><input type="checkbox" id="e_low" checked> minúsculas</label>
+<label><input type="checkbox" id="e_url" checked> remover URLs e HTML</label>
+<label><input type="checkbox" id="e_esp" checked> remover caracteres especiais</label>
+<label><input type="checkbox" id="e_stop" checked> remover <i>stopwords</i></label>
+<label>forma básica: <select id="e_red"><option value="nenhuma">nenhuma</option><option value="stem" selected>radicalização</option><option value="lema">lematização</option></select></label>
+</div>
+<div id="passos"></div>
+</section>
+<section class="painel"><h2>Radicalização ou lematização?</h2>
+<p class="muted">Digite palavras separadas por espaço e compare.</p>
+<input type="text" id="palavras" style="width:100%" value="running loved amazing studies better visited">
+<div id="comp"></div>
+<p class="muted">Inglês: algoritmo de Porter (1980), implementação completa. Português: radicalizador <b>simplificado</b>, inspirado no RSLP de Orengo e Huyck (2001). Lematização: pequeno dicionário de demonstração (um lematizador real usa vocabulário e classes gramaticais).</p>
+</section>
+<section class="painel"><h2>Lei de Zipf: por que existem <i>stopwords</i></h2>
+<p class="muted">Frequência das palavras do texto acima (e de um parágrafo maior, para ter dados). Poucas palavras muito frequentes, quase todas gramaticais; muitas palavras raras.</p>
+<canvas id="cz" width="860" height="260"></canvas>
+<div id="topz"></div>
+</section>
+<section class="caixa creme"><h2>Para discutir</h2>
+<ol><li>Rode o "exemplo com negação": ao remover a <i>stopword</i> "não", "este não é um bom produto" vira "bom produto". As palavras "vazias" carregam a forma lógica da frase (negação, quantificação, conectivos). O que a lógica e a filosofia da linguagem têm a dizer sobre chamar essas palavras de "vazias"?</li>
+<li>A radicalização trata "amei", "amava" e "amou" como a mesma coisa. Quando isso é bom (busca) e quando é uma perda (tempo verbal, aspecto, sujeito)?</li></ol></section>
+<div class="ref"><p>YADAV, R. <i>NLP</i>: complete developer study notes. [S. l.: s. n.], [202-]. Seções 1 e 2.</p>
+<p>PORTER, M. F. An algorithm for suffix stripping. <i>Program</i>, v. 14, n. 3, p. 130-137, 1980.</p>
+<p>ORENGO, V. M.; HUYCK, C. A stemming algorithm for the Portuguese language. In: SPIRE, 8., 2001. <i>Proceedings</i> [...]. IEEE, 2001. p. 186-193.</p>
+<p>ZIPF, G. K. <i>Human behavior and the principle of least effort</i>. Cambridge, MA: Addison-Wesley, 1949.</p></div>
+</main>
+<script src="pln.js"></script>
+<script>
+const EX={pt:'Eu AMEI este produto!!! É incrível :) Visite https://exemplo.com <b>já</b>',en:"I loved this product!!! It's amazing :) Visit https://example.com"};
+const NEG={pt:'Este não é um bom produto. Eu não gostei nada!',en:'This is not a good product. I did not like it at all!'};
+const LONGO={pt:'A linguagem é o meio pelo qual pensamos e nos comunicamos. Uma palavra tem significado no uso que fazemos dela na linguagem. Os modelos de linguagem aprendem com o uso das palavras em grandes coleções de textos. A palavra que aparece perto de outras palavras revela algo do seu sentido. O processamento de linguagem natural transforma o texto em números para que a máquina possa trabalhar com ele. Mas o que se perde quando a linguagem vira número?',
+ en:'Language is the medium in which we think and communicate. A word has meaning in the use we make of it in the language. Language models learn from the use of words in large collections of texts. The word that appears near other words reveals something of its sense. Natural language processing turns text into numbers so that the machine can work with it. But what is lost when language becomes a number?'};
+function exemplo(){$('#txt').value=EX[$('#lang').value];roda();}
+function negacao(){$('#txt').value=NEG[$('#lang').value];roda();}
+function linha(rot,arr,cls=''){return `<tr><td style="text-align:left;white-space:nowrap"><b>${rot}</b></td><td style="text-align:left">${Array.isArray(arr)?arr.map(t=>`<span class="tok ${cls}">${esc(t)}</span>`).join(''):esc(arr)}</td></tr>`;}
+function roda(){const lang=$('#lang').value;let t=$('#txt').value;const L=[];L.push(linha('Texto bruto',t));
+ if($('#e_low').checked){t=t.toLowerCase();L.push(linha('Minúsculas',t));}
+ if($('#e_url').checked){t=t.replace(/<[^>]+>/g,' ').replace(/https?:\/\/\S+|www\.\S+/g,' ');L.push(linha('Sem URLs e HTML',t));}
+ if($('#e_esp').checked){t=t.replace(/[^\p{L}\p{N}\s'’]/gu,' ').replace(/\s+/g,' ').trim();L.push(linha('Sem caracteres especiais',t));}
+ let tok=tokenizar(t);L.push(linha('Tokenização',tok));
+ if($('#e_stop').checked){const S=STOP[lang];const rem=tok.filter(w=>S.has(w.toLowerCase()));tok=tok.filter(w=>!S.has(w.toLowerCase()));L.push(linha('Sem stopwords',tok,''));if(rem.length)L.push(linha('↳ removidas',rem,'risc'));}
+ const red=$('#e_red').value;if(red==='stem'){tok=tok.map(w=>lang==='en'?porter(w.toLowerCase()):radicalPT(w.toLowerCase()));L.push(linha('Radicalização',tok,'ouro'));}
+ if(red==='lema'){tok=tok.map(w=>lema(w.toLowerCase(),lang));L.push(linha('Lematização',tok,'verde'));}
+ $('#passos').innerHTML=`<div class="scroll"><table>${L.join('')}</table></div><p class="revela">Texto final limpo: <b>${esc(tok.join(' '))}</b> &nbsp; (${tokenizar($('#txt').value).length} → ${tok.length} tokens)</p>`;
+ compara();zipf();}
+function compara(){const lang=$('#lang').value;const ws=tokenizar($('#palavras').value.toLowerCase());
+ $('#comp').innerHTML=tabela(['Palavra','Radicalização (stemming)','Lematização'],ws.map(w=>[w,`<span class="tok ouro">${esc(lang==='en'?porter(w):radicalPT(w))}</span>`,`<span class="tok verde">${esc(lema(w,lang))}</span>`]));}
+function zipf(){const lang=$('#lang').value;const toks=tokenizar(($('#txt').value+' '+LONGO[lang]).toLowerCase());const f={};toks.forEach(w=>f[w]=(f[w]||0)+1);
+ const arr=Object.entries(f).sort((a,b)=>b[1]-a[1]);const c=$('#cz').getContext('2d'),W=860,H=260;c.fillStyle='#fff';c.fillRect(0,0,W,H);const n=Math.min(arr.length,40),mx=arr[0][1];const bw=(W-40)/n;
+ arr.slice(0,n).forEach(([w,v],i)=>{const h=v/mx*(H-70);c.fillStyle=STOP[lang].has(w)?COR.gold:COR.navy;c.fillRect(20+i*bw,H-50-h,bw-3,h);c.save();c.translate(20+i*bw+bw/2,H-46);c.rotate(-Math.PI/3);c.fillStyle='#374151';c.font='11px sans-serif';c.textAlign='right';c.fillText(w,0,0);c.restore();});
+ c.fillStyle=COR.gold;c.font='13px sans-serif';c.fillText('■ stopwords',W-200,18);c.fillStyle=COR.navy;c.fillText('■ demais palavras',W-110,18);
+ const ns=arr.slice(0,10).filter(([w])=>STOP[lang].has(w)).length;$('#topz').innerHTML=`<p>Das 10 palavras mais frequentes, <b>${ns}</b> são <i>stopwords</i>. Zipf (1949): a frequência de uma palavra é aproximadamente inversamente proporcional à sua posição no ranking.</p>`;}
+['#lang'].forEach(i=>$(i).onchange=()=>{exemplo();$('#palavras').value=$('#lang').value==='en'?'running loved amazing studies better visited':'amei amava amou correndo incríveis gatinhos bancos meninas';compara();});
+['#e_low','#e_url','#e_esp','#e_stop','#e_red'].forEach(i=>$(i).onchange=roda);$('#txt').oninput=roda;$('#palavras').oninput=compara;
+$('#palavras').value='amei amava amou correndo incríveis gatinhos bancos meninas';exemplo();
+</script>
+</body></html>

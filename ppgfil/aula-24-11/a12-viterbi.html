@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 12 · Ler um cheque: grafos e Viterbi</title><link rel="stylesheet" href="estilo.css">
+<style>.arco{cursor:pointer}.arco:hover path{stroke-width:5}</style></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · Aula de 24/11</span></header>
+<main>
+<p class="tag">Atividade 12 · LeCun et al. (1998), seções V, VI e X</p>
+<h1>Ler um cheque: segmentar e reconhecer ao mesmo tempo</h1>
+<section class="caixa azul"><h2>Contexto</h2>
+<p>Para ler o valor de um cheque é preciso <b>separar</b> os caracteres, mas para separar bem é preciso saber o que eles são. A solução do artigo (segmentação heurística excessiva, HOS) evita decidir cedo: gera muitos cortes candidatos, monta um <b>grafo de segmentação</b> (cada caminho cobre toda a tinta uma única vez), aplica o reconhecedor a cada pedaço (cada arco recebe rótulos com <b>penalidades</b>) e, no fim, o <b>algoritmo de Viterbi</b> escolhe o caminho de menor penalidade total. Uma gramática pode restringir as leituras válidas (LECUN et al., 1998, p. 2297-2299, 2316).</p>
+</section>
+<section class="painel">
+<h2>1. O campo do valor</h2>
+<canvas id="cS" width="560" height="160"></canvas>
+<p class="muted">Os cortes c1, c2 e c3 foram propostos por heurísticas. O "4" ficou partido em duas peças de tinta.</p>
+<h2>2. O grafo de interpretação</h2>
+<p class="muted">Toque em um arco para ver as leituras do reconhecedor e suas penalidades (quanto menor, melhor). Depois monte um caminho de c0 a c4.</p>
+<div style="overflow-x:auto"><svg id="g" viewBox="0 0 640 260" width="100%" style="min-width:600px;background:#fff;border:1px solid #D1D5DB;border-radius:10px"></svg></div>
+<div id="info" class="revela">Seu caminho: (vazio)</div>
+<p><button class="sec" onclick="limpaCaminho()">limpar caminho</button></p>
+</section>
+<section class="painel">
+<h2>3. Deixe o Viterbi decidir</h2>
+<button onclick="viterbi(false)">executar Viterbi</button><button class="ouro" onclick="viterbi(true)">Viterbi com gramática: "valor entre 100 e 999"</button>
+<div id="vres"></div>
+<h3>4. Combinar caminhos com o mesmo rótulo (penalidade forward)</h3>
+<p class="muted">Se dois caminhos diferentes produzem a mesma leitura, isso é evidência extra a favor dela. O treinamento <i>forward</i> combina as penalidades com a operação logadd, um "mínimo suave": logadd(a, b) = −log(e<sup>−a</sup> + e<sup>−b</sup>), sempre menor ou igual ao menor dos dois (p. 2303).</p>
+<p>Leitura: <select id="selL"></select> <span id="fres"></span></p>
+</section>
+<section class="caixa creme"><h2>Para discutir</h2>
+<ol><li>"Segmentação e reconhecimento de objetos em imagens não podem ser completamente desacoplados" (LECUN et al., 1998, p. 2317). Para interpretar o todo é preciso entender as partes, e para entender as partes é preciso o todo: é o <b>círculo hermenêutico</b> (GADAMER, 1997). O grafo de hipóteses é uma solução técnica para um problema hermenêutico?</li>
+<li>A gramática corrigiu a leitura. Conhecimento do contexto (o que é um valor válido) muda a percepção do que está escrito. Isso é viés ou é compreensão?</li></ol></section>
+<div class="ref"><p>LECUN, Y. et al. Gradient-based learning applied to document recognition. <i>Proceedings of the IEEE</i>, v. 86, n. 11, p. 2278-2324, 1998.</p>
+<p>GADAMER, H.-G. <i>Verdade e método</i>: traços fundamentais de uma hermenêutica filosófica. Tradução de Flávio Paulo Meurer. Petrópolis: Vozes, 1997.</p>
+<p class="muted">As penalidades deste exercício foram escolhidas para fins didáticos.</p></div>
+</main>
+<script src="digitos.js"></script><script src="comum.js"></script>
+<script>
+const ARCOS=[{id:'a01',de:0,para:1,img:'o "3"',c:{3:0.2,8:1.5,5:2.0}},{id:'a12',de:1,para:2,img:'peça esquerda do "4"',c:{1:0.4,4:1.8,7:2.2}},{id:'a23',de:2,para:3,img:'peça direita do "4"',c:{1:0.3,7:1.6}},
+{id:'a13',de:1,para:3,img:'as duas peças juntas',c:{4:0.9,9:1.4,1:2.5}},{id:'a34',de:3,para:4,img:'o "0"',c:{0:0.1,6:1.7}},{id:'a02',de:0,para:2,img:'"3" + peça esquerda',c:{8:2.4,3:2.6}},{id:'a24',de:2,para:4,img:'peça direita + "0"',c:{0:2.3,4:2.9}}];
+const X=[60,190,320,450,580],Y=130;
+// imagem do campo
+(function(){const N=28;const pega=(d,k)=>ampliar(digito8(indicesDe(d)[k]),N,2);const cols=img=>{const c=[];for(let x=0;x<N;x++){let s=0;for(let y=0;y<N;y++)s+=img[y*N+x];if(s>0.05)c.push(x);}return c;};
+ const corta=(img,a,b)=>{const o=[];for(let y=0;y<N;y++){const r=[];for(let x=a;x<=b;x++)r.push(img[y*N+x]);o.push(r);}return o;};
+ const d3=pega(3,6),d4=pega(4,3),d0=pega(0,8);const c3=cols(d3),c4=cols(d4),c0=cols(d0);
+ const A=corta(d3,c3[0],c3[c3.length-1]),Bf=corta(d4,c4[0],c4[c4.length-1]),C=corta(d0,c0[0],c0[c0.length-1]);const wB=Bf[0].length,h=Math.floor(wB/2);
+ const B1=Bf.map(r=>r.slice(0,h-1)),B2=Bf.map(r=>r.slice(h+1));const gap=k=>[...Array(N)].map(()=>Array(k).fill(0));
+ const partes=[gap(3),A,gap(2),B1,gap(3),B2,gap(3),C,gap(3)];const strip=[...Array(N)].map((_,y)=>partes.flatMap(p=>p[y]));const W=strip[0].length;
+ const cuts=[0,3+A[0].length+1,3+A[0].length+2+B1[0].length+1,3+A[0].length+2+B1[0].length+3+B2[0].length+1,W-1];
+ const cv=$('#cS'),ctx=cv.getContext('2d'),s=Math.min(cv.width/W,(cv.height-30)/N),ox=(cv.width-W*s)/2;ctx.fillStyle='#fff';ctx.fillRect(0,0,cv.width,cv.height);
+ for(let y=0;y<N;y++)for(let x=0;x<W;x++){const v=Math.min(1,strip[y][x]);const gg=Math.round(255*(1-v));ctx.fillStyle=`rgb(${gg},${gg},${gg})`;ctx.fillRect(ox+x*s,22+y*s,s+0.5,s+0.5);}
+ cuts.forEach((cx,i)=>{ctx.strokeStyle=(i===0||i===4)?'#9CA3AF':COR.verm;ctx.setLineDash([5,4]);ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(ox+cx*s,20);ctx.lineTo(ox+cx*s,cv.height);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=ctx.strokeStyle;ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.fillText('c'+i,ox+cx*s,14);});})();
+let caminho=[];
+function melhor(a){return Object.entries(a.c).sort((x,y)=>x[1]-y[1])[0];}
+function desenhaGrafo(destaque=[]){const svg=$('#g');let h='';
+ ARCOS.forEach(a=>{const x1=X[a.de]+22,x2=X[a.para]-22;const span=a.para-a.de;let d,lx,ly;
+  if(span===1){d=`M${x1},${Y} L${x2},${Y}`;lx=(x1+x2)/2;ly=Y-10;} else {const up=a.id==='a13';const cy=up?Y-120:Y+120;d=`M${x1-8},${Y+(up?-14:14)} Q${(X[a.de]+X[a.para])/2},${cy} ${x2+8},${Y+(up?-14:14)}`;lx=(X[a.de]+X[a.para])/2;ly=up?Y-62:Y+76;}
+  const sel=caminho.find(p=>p.id===a.id),hl=destaque.includes(a.id);const cor=hl?COR.verde:sel?COR.gold:'#6B7280';
+  const[lab,pen]=sel?[sel.lab,a.c[sel.lab]]:melhor(a);
+  h+=`<g class="arco" onclick="clica('${a.id}')"><path d="${d}" fill="none" stroke="${cor}" stroke-width="${hl||sel?4:2.5}" marker-end="url(#m)"/><rect x="${lx-34}" y="${ly-14}" width="68" height="20" rx="5" fill="#fff" stroke="${cor}"/><text x="${lx}" y="${ly+1}" text-anchor="middle" font-size="13" font-weight="700" fill="${cor}">"${lab}" ${fmt(pen,1)}</text></g>`;});
+ X.forEach((x,i)=>{const ini=i===0||i===4;h+=`<circle cx="${x}" cy="${Y}" r="20" fill="${ini?COR.navy:'#fff'}" stroke="${COR.navy}" stroke-width="2.5"/><text x="${x}" y="${Y+5}" text-anchor="middle" font-size="14" font-weight="700" fill="${ini?'#fff':COR.navy}">c${i}</text>`;});
+ svg.innerHTML=`<defs><marker id="m" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#6B7280"/></marker></defs>`+h;}
+function clica(id){const a=ARCOS.find(x=>x.id===id);const fim=caminho.length?ARCOS.find(x=>x.id===caminho[caminho.length-1].id).para:0;
+ const opcoes=Object.entries(a.c).sort((x,y)=>x[1]-y[1]).map(([l,p])=>`<button class="sec" onclick="escolhe('${id}','${l}')">"${l}" (penalidade ${fmt(p,1)})</button>`).join('');
+ $('#info').innerHTML=`<b>Arco c${a.de} → c${a.para}</b> (${a.img}).<br>`+(a.de===fim?'Escolha a leitura para incluir no caminho: '+opcoes:'<span class="muted">Este arco não continua o seu caminho atual (que termina em c'+fim+'). Leituras do reconhecedor: '+Object.entries(a.c).map(([l,p])=>`"${l}" ${fmt(p,1)}`).join(', ')+'</span>');}
+function escolhe(id,l){caminho.push({id,lab:l});mostraCaminho();}
+function mostraCaminho(){desenhaGrafo();const fim=caminho.length?ARCOS.find(x=>x.id===caminho[caminho.length-1].id).para:0;const tot=caminho.reduce((s,p)=>s+ARCOS.find(a=>a.id===p.id).c[p.lab],0);
+ $('#info').innerHTML=`Seu caminho: <b>${caminho.map(p=>p.lab).join('')||'(vazio)'}</b>, penalidade total <b>${fmt(tot,1)}</b>`+(fim===4?' <span class="ok">(caminho completo!)</span> Compare com o Viterbi abaixo.':' (continue a partir de c'+fim+')');}
+function limpaCaminho(){caminho=[];desenhaGrafo();$('#info').textContent='Seu caminho: (vazio)';}
+function todos(){const res=[];(function rec(n,arcs,labs,pen){if(n===4){res.push({arcs:arcs.slice(),lab:labs.join(''),pen});return;}ARCOS.filter(a=>a.de===n).forEach(a=>Object.entries(a.c).forEach(([l,p])=>{arcs.push(a.id);labs.push(l);rec(a.para,arcs,labs,pen+p);arcs.pop();labs.pop();}));})(0,[],[],0);return res;}
+function viterbi(gram){let h='';
+ if(!gram){const v=[0,null,null,null,null],arg=[];for(let n=1;n<=4;n++){let b=1e9,ba=null;ARCOS.filter(a=>a.para===n).forEach(a=>{const[l,p]=melhor(a);const val=v[a.de]+p;if(val<b){b=val;ba={a,l,p};}});v[n]=b;arg[n]=ba;}
+  const path=[];let n=4;while(n>0){path.unshift(arg[n]);n=arg[n].a.de;}
+  h=`<table><tr><th>Nó</th><th>Penalidade acumulada v<sub>n</sub></th><th>Melhor arco de entrada</th></tr>`+[0,1,2,3,4].map(i=>`<tr><td>c${i}</td><td>${fmt(v[i],1)}</td><td>${i?`c${arg[i].a.de} → c${i} "${arg[i].l}" (${fmt(arg[i].p,1)})`:'início'}</td></tr>`).join('')+`</table>
+  <p class="revela">Leitura de Viterbi: <span class="grande">${path.map(p=>p.l).join('')}</span> (penalidade ${fmt(v[4],1)}). <span class="erro">Sem contexto, o sistema leu as duas peças do 4 como dois "1".</span></p>`;desenhaGrafo(path.map(p=>p.a.id));}
+ else{const ok=todos().filter(r=>r.lab.length===3&&+r.lab>=100&&+r.lab<=999).sort((a,b)=>a.pen-b.pen);const b=ok[0];
+  h=`<p>Compondo o grafo com a gramática, só restam caminhos de 3 algarismos. As melhores leituras válidas:</p><ol>`+ok.slice(0,4).map(r=>`<li>"${r.lab}": ${fmt(r.pen,1)}</li>`).join('')+`</ol><p class="revela">Leitura de Viterbi com gramática: <span class="grande">${b.lab}</span> (penalidade ${fmt(b.pen,1)}). <span class="ok">O contexto corrigiu a leitura.</span></p>`;desenhaGrafo(b.arcs);}
+ $('#vres').innerHTML=h;}
+// forward
+const T=todos();const labs=[...new Set(T.map(t=>t.lab))].map(l=>[l,Math.min(...T.filter(t=>t.lab===l).map(t=>t.pen))]).sort((a,b)=>a[1]-b[1]).slice(0,12);
+labs.forEach(([l])=>{const o=document.createElement('option');o.textContent=l;$('#selL').appendChild(o);});$('#selL').value='340';
+function forward(){const l=$('#selL').value;const ps=T.filter(t=>t.lab===l).map(t=>t.pen);const f=-Math.log(ps.reduce((s,p)=>s+Math.exp(-p),0));
+ $('#fres').innerHTML=`: ${ps.length} caminho(s) com penalidades ${ps.map(p=>fmt(p,1)).join(' e ')}. Penalidade de Viterbi = ${fmt(Math.min(...ps),2)}; penalidade forward = <b>${fmt(f,2)}</b>.`;}
+$('#selL').onchange=forward;forward();desenhaGrafo();
+</script>
+</body></html>

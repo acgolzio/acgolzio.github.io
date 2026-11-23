@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 14 · Laboratório de tarefas de PLN</title><link rel="stylesheet" href="estilo.css"></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · PLN e Transformers</span></header>
+<main>
+<p class="tag">Atividade 14 · Tarefas e aplicações</p>
+<h1>Laboratório de tarefas: sentimento, entidades, resumo e perguntas</h1>
+<section class="caixa azul"><h2>Contexto</h2>
+<p>O PLN reúne muitas tarefas: classificação de texto (por exemplo, análise de sentimento), reconhecimento de entidades nomeadas (pessoa, organização, local, data), resumo (extrativo ou abstrativo), tradução, perguntas e respostas (extrativas ou gerativas), geração de texto. Aqui cada tarefa é resolvida por um método <b>simples e transparente</b> (léxico, regras, contagem), para que você veja o que a tarefa exige e onde esses métodos falham. Sistemas atuais usam modelos pré-treinados como BERT e T5.</p>
+</section>
+<section class="painel"><h2>1. Análise de sentimento (léxico + negação)</h2>
+<input type="text" id="sent" style="width:100%" value="O filme não é bom, mas a trilha sonora é excelente.">
+<p><button class="sec" onclick="s('Que ótimo, perdi o ônibus de novo.')">ironia</button><button class="sec" onclick="s('Este produto não é ruim.')">dupla negação</button></p><div id="sres"></div>
+</section>
+<section class="painel"><h2>2. Reconhecimento de entidades nomeadas</h2>
+<input type="text" id="ner" style="width:100%" value="Maria Souza trabalha na Unesp, em Marília, desde março de 2020.">
+<div id="nres"></div>
+</section>
+<section class="painel"><h2>3. Resumo extrativo</h2>
+<textarea id="doc" style="min-height:8rem">O Banco Alfa, um banco fictício, informou um aumento de 25% no lucro líquido no primeiro trimestre. O crescimento foi impulsionado por mais concessões de crédito e pela melhora na qualidade dos ativos. A diretoria espera que o ritmo continue nos próximos trimestres. O banco também abriu dez novas agências. Analistas, porém, alertam para o aumento da inadimplência no setor.</textarea>
+<div class="ctl"><label>frases no resumo <span class="val" id="vns"></span></label><input type="range" id="ns" min="1" max="4" value="2"></div><div id="rres"></div>
+</section>
+<section class="painel"><h2>4. Perguntas e respostas extrativas</h2>
+<label>Contexto</label><input type="text" id="ctx" style="width:100%" value="A Unesp foi criada em 1976 e sua reitoria fica na cidade de São Paulo.">
+<label>Pergunta</label><input type="text" id="perg" style="width:100%" value="Quando a Unesp foi criada?">
+<div id="qres"></div>
+</section>
+<section class="painel"><h2>5. Outras tarefas citadas nas notas</h2><div id="outras"></div></section>
+<section class="caixa creme"><h2>Para discutir</h2>
+<ol><li>A ironia ("Que ótimo, perdi o ônibus") engana o léxico. Entender ironia exige saber o que o falante <b>quer dizer</b>, não só o que as palavras dizem (Grice). Um modelo estatístico pode aprender isso só com texto?</li>
+<li>O resumo extrativo copia frases; o abstrativo reescreve. Qual dos dois "compreende" o texto? Qual dos dois pode inventar o que não estava lá?</li></ol></section>
+<div class="ref"><p>YADAV, R. <i>NLP</i>: complete developer study notes. [S. l.: s. n.], [202-]. Seção 11.</p>
+<p>JURAFSKY, D.; MARTIN, J. H. <i>Speech and language processing</i>. 3. ed. (rascunho). Stanford, 2024. Disponível em: https://web.stanford.edu/~jurafsky/slp3/.</p>
+<p>GRICE, H. P. Logic and conversation. In: COLE, P.; MORGAN, J. L. (ed.). <i>Syntax and semantics 3</i>: speech acts. New York: Academic Press, 1975. p. 41-58.</p></div>
+</main>
+<script src="pln.js"></script>
+<script>
+const POS=new Set('bom boa ótimo ótima excelente incrível maravilhoso adorei amei gostei feliz lindo perfeito positivo'.split(' ')),NEG=new Set('ruim péssimo péssima horrível odiei detestei triste chato perdi problema negativo fraco pior'.split(' ')),NEGA=new Set(['não','nunca','nem','jamais']);
+function s(t){$('#sent').value=t;sent();}
+function sent(){const t=tokenizar($('#sent').value.toLowerCase());let sc=0;const tr=[];t.forEach((w,i)=>{let v=POS.has(w)?1:NEG.has(w)?-1:0;if(v&&t.slice(Math.max(0,i-3),i).some(x=>NEGA.has(x)))v=-v;sc+=v;tr.push(`<span class="tok ${v>0?'verde':v<0?'ouro':''}">${esc(w)}${v?` (${v>0?'+':''}${v})`:''}</span>`);});
+ $('#sres').innerHTML=`<p>${tr.join('')}</p><p class="grande ${sc>0?'ok':sc<0?'erro':''}">${sc>0?'Positivo':sc<0?'Negativo':'Neutro'} (escore ${sc})</p><p class="muted">Regra: palavras positivas valem +1, negativas −1; uma negação até 3 palavras antes inverte o sinal.</p>`;}
+const GAZ={ORG:['unesp','usp','unicamp','google','openai','petrobras','banco alfa'],LOC:['marília','tupã','são paulo','brasil','lisboa','jaipur','índia'],MES:['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro']};
+function ner(){const txt=$('#ner').value;const ents=[];const low=txt.toLowerCase();
+ GAZ.ORG.forEach(o=>{const i=low.indexOf(o);if(i>=0)ents.push({i,j:i+o.length,t:'ORG'});});GAZ.LOC.forEach(o=>{const i=low.indexOf(o);if(i>=0)ents.push({i,j:i+o.length,t:'LOC'});});
+ const re=/\b(?:(?:janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+de\s+)?(?:1[89]|20)\d{2}\b/gi;let m;while((m=re.exec(txt)))ents.push({i:m.index,j:m.index+m[0].length,t:'DATA'});
+ const rp=/\b([A-ZÁÉÍÓÚÂÊÔÃÕ][a-záéíóúâêôãõç]+)(\s+[A-ZÁÉÍÓÚÂÊÔÃÕ][a-záéíóúâêôãõç]+)+\b/g;while((m=rp.exec(txt))){if(!ents.some(e=>m.index<e.j&&m.index+m[0].length>e.i))ents.push({i:m.index,j:m.index+m[0].length,t:'PER'});}
+ ents.sort((a,b)=>a.i-b.i);let out='',p=0;const cor={PER:'#123B6A',ORG:'#A87A36',LOC:'#1E7B45',DATA:'#7C3AED'};ents.forEach(e=>{if(e.i<p)return;out+=esc(txt.slice(p,e.i))+`<span style="background:${cor[e.t]};color:#fff;border-radius:5px;padding:.05rem .35rem">${esc(txt.slice(e.i,e.j))} <small>${e.t}</small></span>`;p=e.j;});out+=esc(txt.slice(p));
+ $('#nres').innerHTML=`<p style="line-height:2">${out}</p><p class="muted">Regras: listas de organizações e lugares (gazetteers), padrão de datas e sequências de palavras com inicial maiúscula para pessoas. Troque "Maria Souza" por "Rio Branco" e veja o erro.</p>`;}
+function resumo(){const fr=$('#doc').value.split(/(?<=[.!?])\s+/).filter(Boolean);const k=+$('#ns').value;$('#vns').textContent=k;const toks=fr.map(f=>tokenizar(f.toLowerCase()).filter(w=>!STOP.pt.has(w)));const df={};toks.forEach(t=>new Set(t).forEach(w=>df[w]=(df[w]||0)+1));
+ const tf={};toks.flat().forEach(w=>tf[w]=(tf[w]||0)+1);const sc=toks.map(t=>t.reduce((s,w)=>s+tf[w]*Math.log(1+fr.length/df[w]),0)/Math.sqrt(t.length+1));const top=sc.map((s,i)=>[s,i]).sort((a,b)=>b[0]-a[0]).slice(0,k).map(x=>x[1]).sort((a,b)=>a-b);
+ $('#rres').innerHTML=tabela(['Frase','Escore'],fr.map((f,i)=>[top.includes(i)?`<b>${esc(f)}</b>`:esc(f),fmt(sc[i],2)]))+`<p class="revela"><b>Resumo extrativo:</b> ${esc(top.map(i=>fr[i]).join(' '))}</p><p class="muted">Cada frase recebe um escore pela soma dos pesos (frequência × raridade) de suas palavras; as melhores são copiadas na ordem original. Um resumo abstrativo (T5, BART) reescreveria o conteúdo com outras palavras.</p>`;}
+function qa(){const c=$('#ctx').value,q=tokenizar($('#perg').value.toLowerCase());let tipo=q.includes('quando')||q.includes('ano')?'DATA':q.includes('onde')?'LOCAL':q.includes('quem')?'PESSOA':'OUTRO';let resp='';
+ if(tipo==='DATA'){const m=c.match(/\b(1[89]|20)\d{2}\b/);resp=m?m[0]:'';}if(tipo==='LOCAL'){const m=c.match(/(?:cidade de|em)\s+([A-ZÁÉÍÓÚ][\wáéíóúâêôãõç]+(?:\s+[A-ZÁÉÍÓÚ][\wáéíóúâêôãõç]+)*)/);resp=m?m[1]:'';}if(tipo==='PESSOA'){const m=c.match(/\b([A-ZÁÉÍÓÚ][a-záéíóúç]+\s+[A-ZÁÉÍÓÚ][a-záéíóúç]+)\b/);resp=m?m[1]:'';}
+ $('#qres').innerHTML=`<p>Tipo de pergunta detectado: <span class="tok">${tipo}</span></p><p class="grande">${resp?esc(resp):'(não encontrei)'}</p><p class="muted">QA extrativo: a resposta é um trecho do contexto. Experimente "Onde fica a reitoria?". Um sistema real (por exemplo, BERT ajustado no SQuAD) prevê o início e o fim do trecho; um QA gerativo redige a resposta.</p>`;}
+$('#outras').innerHTML=tabela(['Tarefa','Descrição'],[['Similaridade de textos','medir quão parecidos são dois textos (busca semântica, detecção de duplicatas)'],['Detecção de paráfrase','decidir se duas frases dizem a mesma coisa'],['Agrupamento de textos','reunir documentos parecidos sem rótulos'],['Modelagem de tópicos','descobrir temas ocultos numa coleção'],['Geração controlada','gerar texto com restrições de tom, estilo ou tamanho'],['IA conversacional','construir chatbots e assistentes'],['Tradução automática','codificador-decodificador; ex.: "How are you?" → "Como vai você?" (mT5, MarianMT)']]);
+$('#sent').oninput=sent;$('#ner').oninput=ner;$('#doc').oninput=resumo;$('#ns').oninput=resumo;['#ctx','#perg'].forEach(i=>$(i).oninput=qa);sent();ner();resumo();qa();
+</script>
+</body></html>

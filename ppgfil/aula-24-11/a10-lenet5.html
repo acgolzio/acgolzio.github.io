@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 10 · Monte a LeNet-5</title><link rel="stylesheet" href="estilo.css"></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · Aula de 24/11</span></header>
+<main>
+<p class="tag">Atividade 10 · LeCun et al. (1998), seção II-B</p>
+<h1>Monte a LeNet-5 camada por camada</h1>
+<section class="caixa azul"><h2>Contexto</h2>
+<p>A LeNet-5 tem sete camadas treináveis. A entrada é uma imagem 32×32. Convoluções 5×5 sem preenchimento reduzem o lado em 4 pixels (32 → 28); subamostragens 2×2 sem sobreposição dividem o lado por 2. Cada unidade convolucional tem 25 pesos por mapa de entrada mais 1 viés; cada mapa de subamostragem tem só 2 parâmetros (um coeficiente e um viés) (LECUN et al., 1998, p. 2284-2285).</p>
+</section>
+<section class="painel">
+<h2>1. Preencha a tabela</h2>
+<div style="overflow-x:auto"><table id="tab"></table></div>
+<p><button onclick="confere()">conferir</button><button class="sec" onclick="dicas()">mostrar dicas</button><button class="sec" onclick="revela()">mostrar respostas</button></p>
+<div id="placar" class="revela oculto"></div>
+<div id="dicas" class="caixa verde oculto"><h2>Dicas</h2><ul>
+<li><b>C1</b>: 6 mapas; cada um com um filtro 5×5 e um viés: 6 × (25 + 1).</li>
+<li><b>S2</b>: 6 mapas, 2 parâmetros cada.</li>
+<li><b>C3</b>: depende da Tabela 1 (abaixo): cada mapa de C3 tem 25 pesos para cada mapa de S2 a que se liga, mais 1 viés.</li>
+<li><b>S4</b>: 16 mapas, 2 parâmetros cada.</li>
+<li><b>C5</b>: 120 unidades, cada uma ligada a 5×5 posições dos 16 mapas de S4: 120 × (400 + 1).</li>
+<li><b>F6</b>: 84 unidades totalmente ligadas às 120 de C5: 84 × (120 + 1).</li></ul></div>
+</section>
+<section class="painel">
+<h2>2. A Tabela 1: quem se liga a quem em C3</h2>
+<p class="muted">Clique nas células para ligar ou desligar conexões entre mapas de S2 (linhas) e de C3 (colunas). O número de parâmetros de C3 é recalculado.</p>
+<div style="overflow-x:auto"><table id="t1" style="width:auto;margin:auto"></table></div>
+<p>Parâmetros de C3: <span class="grande" id="pc3"></span> &nbsp; Conexões de C3: <b id="cc3"></b></p>
+<p><button class="sec" onclick="restaura()">restaurar Tabela 1 original</button><button class="sec" onclick="completa()">ligar tudo</button></p>
+<div class="revela">Por que não ligar tudo? Os autores dão duas razões: manter o número de conexões em limites razoáveis e, sobretudo, <b>quebrar a simetria</b>: mapas que recebem entradas diferentes são forçados a extrair características diferentes, de preferência complementares (LECUN et al., 1998, p. 2285).</div>
+<p class="muted"><b>Para olhos atentos:</b> o artigo informa 156.000 conexões para C3. O cálculo direto (1.516 parâmetros × 100 posições do mapa 10×10) dá 151.600. O total de 345.308 conexões citado no artigo é coerente com o valor de 156.000.</p>
+</section>
+<section class="caixa creme"><h2>Para discutir</h2>
+<ol><li>São 345.308 conexões, mas só 60.000 parâmetros livres. O que significa dizer que a rede "sabe" algo se o mesmo peso é usado em milhares de lugares?</li>
+<li>A conexão incompleta é uma decisão de projeto humana para forçar diversidade. Quanto do "aprender" da LeNet-5 já foi decidido pelos engenheiros?</li></ol></section>
+<div class="ref"><p>LECUN, Y. et al. Gradient-based learning applied to document recognition. <i>Proceedings of the IEEE</i>, v. 86, n. 11, p. 2278-2324, 1998.</p></div>
+</main>
+<script src="comum.js"></script>
+<script>
+const L=[['Entrada','-','32×32','-','-'],['C1','convolução 5×5','28×28×6',156,'6 mapas'],['S2','subamostragem 2×2','14×14×6',12,'6 mapas'],['C3','convolução 5×5','10×10×16',1516,'16 mapas'],['S4','subamostragem 2×2','5×5×16',32,'16 mapas'],['C5','convolução 5×5','1×1×120',48120,'120 mapas'],['F6','completa','84',10164,'84 unidades'],['Saída','RBF euclidiana','10','-','parâmetros fixos (7×12)']];
+$('#tab').innerHTML='<tr><th>Camada</th><th>Operação</th><th>Tamanho da saída</th><th>Parâmetros treináveis</th><th></th></tr>'+L.map((r,k)=>`<tr><td><b>${r[0]}</b></td><td>${r[1]}</td><td>${(k===0||k===7)?r[2]:'<input type="text" id="s'+k+'" placeholder="?">'}</td><td>${(typeof r[3]==='number')?'<input type="text" inputmode="numeric" id="p'+k+'" placeholder="?">':r[3]}</td><td id="r${k}"></td></tr>`).join('')+'<tr><td colspan="3"><b>Total de parâmetros treináveis</b></td><td><input type="text" inputmode="numeric" id="ptot" placeholder="?"></td><td id="rtot"></td></tr>';
+const norm=s=>s.replace(/\s/g,'').replace(/[x×X*]/g,'x').replace(/\./g,'');
+function confere(){let ok=0,tot=0;for(let k=1;k<=6;k++){const s=$('#s'+k),p=$('#p'+k);let c=true,any=false;
+ if(s.value){any=true;tot++;const alt=[norm(L[k][2])];if(k===5)alt.push('120');if(k===6)alt.push('1x1x84','84x1');if(alt.includes(norm(s.value)))ok++;else c=false;}
+ if(p.value){any=true;tot++;if(+norm(p.value)===L[k][3])ok++;else c=false;}
+ $('#r'+k).innerHTML=any?(c?'<span class="ok">✓</span>':'<span class="erro">✗</span>'):'';}
+ const t=$('#ptot');if(t.value){tot++;const c=+norm(t.value)===60000;if(c)ok++;$('#rtot').innerHTML=c?'<span class="ok">✓ 60.000</span>':'<span class="erro">✗</span>';}
+ const p=$('#placar');p.classList.remove('oculto');p.innerHTML=`Acertos: <b>${ok}</b> de <b>${tot}</b>.`+(ok===13?' <span class="ok">Perfeito: 156 + 12 + 1.516 + 32 + 48.120 + 10.164 = 60.000 parâmetros, exatamente o número do artigo.</span>':'');}
+function dicas(){$('#dicas').classList.toggle('oculto');}
+function revela(){for(let k=1;k<=6;k++){$('#s'+k).value=L[k][2];$('#p'+k).value=L[k][3].toLocaleString('pt-BR');}$('#ptot').value='60.000';confere();}
+const T1=[[0,4,5,6,9,10,11,12,14,15],[0,1,5,6,7,10,11,12,13,15],[0,1,2,6,7,8,11,13,14,15],[1,2,3,6,7,8,9,12,14,15],[2,3,4,7,8,9,10,12,13,15],[3,4,5,8,9,10,11,13,14,15]];
+let M;function restaura(){M=[...Array(6)].map((_,i)=>[...Array(16)].map((_,j)=>T1[i].includes(j)));t1();}
+function completa(){M=M.map(r=>r.map(()=>true));t1();}
+function t1(){$('#t1').innerHTML='<tr><th></th>'+[...Array(16).keys()].map(j=>`<th>${j}</th>`).join('')+'</tr>'+M.map((r,i)=>`<tr><th>${i}</th>`+r.map((v,j)=>`<td data-i="${i}" data-j="${j}" style="cursor:pointer;background:${v?'#EEF2F7':'#fff'};color:#123B6A;font-weight:700;min-width:1.6rem">${v?'X':''}</td>`).join('')+'</tr>').join('');
+ document.querySelectorAll('#t1 td').forEach(td=>td.onclick=()=>{const i=+td.dataset.i,j=+td.dataset.j;M[i][j]=!M[i][j];t1();});
+ let p=0;for(let j=0;j<16;j++){const k=M.reduce((s,r)=>s+(r[j]?1:0),0);if(k>0)p+=25*k+1;}$('#pc3').textContent=p.toLocaleString('pt-BR');$('#cc3').textContent=(p*100).toLocaleString('pt-BR');}
+restaura();
+</script>
+</body></html>

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 2 · Tokens, IDs e embeddings</title><link rel="stylesheet" href="estilo.css"></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · PLN e Transformers</span></header>
+<main>
+<p class="tag">Atividade 2 · Tokenização</p>
+<h1>Tokens, IDs e embeddings: como uma frase entra num Transformer</h1>
+<section class="caixa azul"><h2>Contexto</h2>
+<p>Um token pode ser uma <b>palavra</b>, uma <b>subpalavra</b> ou um <b>caractere</b>. Os Transformers costumam usar subpalavras (BPE, WordPiece, SentencePiece) para lidar com palavras raras e desconhecidas. Cada token vira um <b>número inteiro</b> (ID) num vocabulário e cada ID seleciona uma linha de uma <b>matriz de embeddings</b> de tamanho V × d (SENNRICH; HADDOW; BIRCH, 2016).</p>
+</section>
+<section class="painel"><h2>1. Três granularidades</h2>
+<input type="text" id="frase" style="width:100%" value="Os desaprendizados inesperados">
+<div id="gran"></div>
+</section>
+<section class="painel"><h2>2. Aprenda um vocabulário BPE ao vivo</h2>
+<p class="muted">O BPE começa com caracteres e, a cada passo, funde o par de símbolos vizinhos mais frequente no corpus. Corpus: uma palavra por linha, com a frequência.</p>
+<div class="linha"><div><textarea id="corpus" style="min-height:9rem">aprender 8
+aprendizado 5
+aprendiz 4
+desaprender 3
+reaprender 2
+prender 6
+pretender 2
+entender 5</textarea></div>
+<div><button onclick="passo()">próxima fusão</button><button class="sec" onclick="variosPassos(10)">10 fusões</button><button class="ouro" onclick="reinicia()">reiniciar</button>
+<p>Fusões feitas: <b id="nm">0</b></p><div id="pares"></div></div></div>
+<h3>Fusões aprendidas</h3><div id="fusoes" class="muted">(nenhuma)</div>
+<h3>Corpus segmentado agora</h3><div id="seg"></div>
+<h3>Teste numa palavra nova</h3>
+<input type="text" id="nova" value="desentender" style="width:100%"><div id="novaSeg"></div>
+</section>
+<section class="painel"><h2>3. Do token ao vetor</h2>
+<p class="muted">Vocabulário de exemplo: cada token da frase recebe um ID; o ID seleciona uma linha da matriz de embeddings (aqui d = 4, valores aleatórios fixos, como num modelo antes do treino).</p>
+<input type="text" id="frase2" style="width:100%" value="eu amo aprendizado de máquina">
+<div id="ids"></div>
+</section>
+<section class="caixa creme"><h2>Para discutir</h2>
+<ol><li>O BPE descobre unidades como "aprend" e "der" só pela frequência, sem saber o que é morfologia. Há algo como "morfemas" emergindo de estatística pura?</li>
+<li>Um "token" não é uma palavra. O que é, então, a unidade de significado para um modelo de linguagem? E para nós?</li></ol></section>
+<div class="ref"><p>YADAV, R. <i>Transformer architecture</i>: complete developer study notes. [S. l.: s. n.], [202-]. Seção 2.</p>
+<p>SENNRICH, R.; HADDOW, B.; BIRCH, A. Neural machine translation of rare words with subword units. In: ANNUAL MEETING OF THE ACL, 54., 2016, Berlin. <i>Proceedings</i> [...]. Stroudsburg: ACL, 2016. p. 1715-1725.</p>
+<p>KUDO, T.; RICHARDSON, J. SentencePiece: a simple and language independent subword tokenizer and detokenizer for neural text processing. In: EMNLP, 2018, Brussels. <i>Proceedings</i> [...]. Stroudsburg: ACL, 2018. p. 66-71.</p></div>
+</main>
+<script src="pln.js"></script>
+<script>
+let palavras=[],merges=[];
+function reinicia(){palavras=$('#corpus').value.trim().split('\n').map(l=>{const p=l.trim().split(/\s+/);return {s:[...p[0].toLowerCase()].concat(['</w>']),f:+(p[1]||1)};}).filter(x=>x.s.length>1);merges=[];mostra();}
+function contaPares(){const c={};palavras.forEach(({s,f})=>{for(let i=0;i<s.length-1;i++){const k=s[i]+'\u0001'+s[i+1];c[k]=(c[k]||0)+f;}});return Object.entries(c).sort((a,b)=>b[1]-a[1]);}
+function aplica(s,a,b){const o=[];for(let i=0;i<s.length;i++){if(i<s.length-1&&s[i]===a&&s[i+1]===b){o.push(a+b);i++;}else o.push(s[i]);}return o;}
+function passo(){const p=contaPares();if(!p.length)return;const [a,b]=p[0][0].split('\u0001');merges.push([a,b,p[0][1]]);palavras.forEach(x=>x.s=aplica(x.s,a,b));mostra();}
+function variosPassos(n){for(let i=0;i<n;i++)passo();}
+function segmenta(w){let s=[...w.toLowerCase()].concat(['</w>']);merges.forEach(([a,b])=>s=aplica(s,a,b));return s;}
+function mostra(){$('#nm').textContent=merges.length;const p=contaPares().slice(0,6);
+ $('#pares').innerHTML=p.length?tabela(['Par mais frequente','Contagem'],p.map(([k,v],i)=>[`<span class="tok ${i?'':'ouro'}">${esc(k.replace('\u0001',' + '))}</span>`,v])):'<p>Não há mais pares.</p>';
+ $('#fusoes').innerHTML=merges.length?merges.map(([a,b,c],i)=>`<span class="tok">${i+1}. ${esc(a)}+${esc(b)} → ${esc(a+b)}</span>`).join(''):'(nenhuma)';
+ $('#seg').innerHTML=palavras.map(({s,f})=>`<div>${s.map(t=>`<span class="tok ${t.length>1&&t!=='</w>'?'ouro':''}">${esc(t)}</span>`).join('')} <span class="muted">×${f}</span></div>`).join('');novaSeg();}
+function novaSeg(){const s=segmenta($('#nova').value.trim()||'x');$('#novaSeg').innerHTML=`<p>${s.map(t=>`<span class="tok verde">${esc(t)}</span>`).join('')} → ${s.length} tokens</p>`;}
+function gran(){const f=$('#frase').value;const w=tokenizar(f);const ch=[...f.replace(/\s+/g,'␣')];const sub=w.flatMap(x=>segmenta(x).map(t=>t.replace('</w>','')).filter(Boolean));
+ $('#gran').innerHTML=tabela(['Granularidade','Tokens','Quantidade'],[['palavra',w.map(t=>`<span class="tok">${esc(t)}</span>`).join(''),w.length],['subpalavra (BPE treinado abaixo)',sub.map(t=>`<span class="tok ouro">${esc(t)}</span>`).join(''),sub.length],['caractere',ch.map(t=>`<span class="tok verde">${esc(t)}</span>`).join(''),ch.length]]);}
+function ids(){const r=rng(7);const toks=tokenizar($('#frase2').value.toLowerCase());const vocab={'[PAD]':0,'[UNK]':100,'[CLS]':101,'[SEP]':102};let next=1000;const base=['eu','amo','aprendizado','de','máquina','profundo','i','love','machine','learning','deep','o','gato','banco'];base.forEach(w=>{vocab[w]=next;next+=137;});
+ const E={};const row=id=>{if(!E[id]){const rr=rng(id*31+5);E[id]=[0,1,2,3].map(()=>Math.round((rr()*2-1)*100)/100);}return E[id];};
+ const linhas=toks.map(t=>{const id=t in vocab?vocab[t]:100;return [`<span class="tok">${esc(t)}</span>`,id===100?'100 <span class="muted">([UNK])</span>':id,'['+row(id).map(v=>fmt(v)).join('; ')+']'];});
+ $('#ids').innerHTML=tabela(['Token','ID no vocabulário','Linha da matriz de embeddings (d = 4)'],linhas)+`<p class="muted">Palavras fora do vocabulário viram [UNK] (desconhecido). É exatamente isso que a tokenização em subpalavras evita: qualquer palavra pode ser escrita com pedaços conhecidos.</p>`;}
+$('#corpus').oninput=reinicia;$('#nova').oninput=novaSeg;$('#frase').oninput=gran;$('#frase2').oninput=ids;
+reinicia();variosPassos(12);gran();ids();
+$('#corpus').addEventListener('input',gran);
+</script>
+</body></html>

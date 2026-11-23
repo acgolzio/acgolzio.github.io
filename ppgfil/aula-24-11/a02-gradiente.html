@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 2 · A paisagem do erro</title><link rel="stylesheet" href="estilo.css"></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · Aula de 24/11</span></header>
+<main>
+<p class="tag">Atividade 2 · Os dois artigos</p>
+<h1>A paisagem do erro: girar botões ou seguir o gradiente?</h1>
+<section class="caixa azul"><h2>Contexto</h2>
+<p>Os pesos de uma rede são como <b>botões</b> que definem sua função entrada e saída. Aprender é girar esses botões para diminuir uma <b>função objetivo</b> (o erro médio). O <b>gradiente</b> indica, para cada botão, quanto o erro aumentaria se ele fosse girado um pouco; anda-se então no sentido oposto (LECUN; BENGIO; HINTON, 2015, p. 436-437). No gradiente <b>estocástico</b>, cada passo usa só alguns exemplos, uma estimativa ruidosa mas barata (LECUN et al., 1998, p. 2280, 2319).</p>
+<p>Aqui a "rede" tem só dois botões: a inclinação <i>w</i> e o deslocamento <i>b</i> de uma reta que deve passar pelos pontos.</p>
+</section>
+<section class="painel">
+<div class="linha">
+ <div class="centro"><b>Dados e reta atual</b><canvas id="cD" width="340" height="300"></canvas></div>
+ <div class="centro"><b>Paisagem do erro E(w, b)</b><canvas id="cL" width="340" height="300"></canvas><span class="muted">Clique na paisagem para escolher um ponto de partida.</span></div>
+</div>
+<p class="centro">Erro médio E = <span class="grande num" id="E"></span> &nbsp; passos: <b id="np">0</b></p>
+<div class="linha">
+ <div>
+  <h3>Desafio 1: só com as mãos</h3>
+  <div class="ctl"><label>Botão w (inclinação) <span class="val" id="vw"></span></label><input type="range" id="w" min="-1.5" max="3.5" step="0.01"></div>
+  <div class="ctl"><label>Botão b (deslocamento) <span class="val" id="vb"></span></label><input type="range" id="b" min="-2.5" max="1.5" step="0.01"></div>
+  <p class="muted">Meta: chegar a E &lt; 0,15 girando os botões.</p>
+ </div>
+ <div>
+  <h3>Desafio 2: deixe o gradiente trabalhar</h3>
+  <div class="ctl"><label>Taxa de aprendizado η <span class="val" id="veta"></span></label><input type="range" id="eta" min="0.02" max="1.1" step="0.01" value="0.2"></div>
+  <button onclick="passo(false)">1 passo (lote)</button><button onclick="passo(true)">1 passo estocástico</button><br>
+  <button class="sec" onclick="varios(false)">20 passos (lote)</button><button class="sec" onclick="varios(true)">20 estocásticos</button><button class="ouro" onclick="reinicia()">reiniciar</button>
+  <p class="muted">Estocástico: cada passo usa 3 pontos sorteados. Experimente η grande (acima de 0,9).</p>
+ </div>
+</div>
+<div id="msg" class="revela"></div>
+</section>
+<section class="caixa creme"><h2>Para discutir</h2>
+<ol><li>Quem define o que conta como "erro"? A função objetivo é escolhida por alguém: em que sentido o aprendizado da máquina é <b>normativo</b>?</li>
+<li>O gradiente usa só informação <b>local</b> (a inclinação no ponto onde se está). Como um procedimento cego e local pode encontrar boas soluções? Compare com a ideia de aprender por tentativa e correção de erros.</li>
+<li>Por que passos ruidosos (estocásticos) podem ser mais rápidos quando há muitos exemplos redundantes? (LECUN et al., 1998, apêndice B)</li></ol></section>
+<div class="ref"><p>LECUN, Y.; BENGIO, Y.; HINTON, G. Deep learning. <i>Nature</i>, v. 521, n. 7553, p. 436-444, 2015.</p>
+<p>LECUN, Y.; BOTTOU, L.; BENGIO, Y.; HAFFNER, P. Gradient-based learning applied to document recognition. <i>Proceedings of the IEEE</i>, v. 86, n. 11, p. 2278-2324, 1998.</p></div>
+</main>
+<script src="comum.js"></script>
+<script>
+// dados fixos (gerador pseudoaleatório simples)
+let seed=7; const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};
+const gauss=()=>{let u=0,v=0;while(!u)u=rnd();v=rnd();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);};
+const X=[],Y=[]; for(let i=0;i<40;i++){const x=rnd()*2-1;X.push(x);Y.push(1.4*x-0.5+0.35*gauss());}
+const WR=[-1.5,3.5],BR=[-2.5,1.5];
+let w=-1,b=1,n=0,traj=[[w,b]];
+const E=(w,b,idx)=>{idx=idx||X.map((_,i)=>i);let s=0;for(const i of idx){const e=w*X[i]+b-Y[i];s+=e*e;}return s/idx.length;};
+// pré-calcula imagem da paisagem
+const cL=$('#cL'),ctxL=cL.getContext('2d'),W=cL.width,H=cL.height; const fundo=ctxL.createImageData(W,H);
+(function(){let mx=0;const vals=[];for(let j=0;j<H;j++)for(let i=0;i<W;i++){const ww=WR[0]+(WR[1]-WR[0])*i/W,bb=BR[1]-(BR[1]-BR[0])*j/H;const v=Math.log(E(ww,bb)+0.05);vals.push(v);}
+ const mn=Math.min(...vals),mxx=Math.max(...vals);vals.forEach((v,k)=>{const t=(v-mn)/(mxx-mn);const band=Math.floor(t*14)%2?0.06:0;
+ const r=18+(238-18)*t,g=59+(242-59)*t,bl=106+(247-106)*t;fundo.data[4*k]=r*(1-band);fundo.data[4*k+1]=g*(1-band);fundo.data[4*k+2]=bl*(1-band);fundo.data[4*k+3]=255;});})();
+const toPx=(ww,bb)=>[(ww-WR[0])/(WR[1]-WR[0])*W,(BR[1]-bb)/(BR[1]-BR[0])*H];
+function desenha(){
+  const c=$('#cD').getContext('2d'),w2=340,h2=300; c.fillStyle='#fff';c.fillRect(0,0,w2,h2);
+  const px=x=>(x+1.2)/2.4*w2, py=y=>h2-(y+2.6)/4.2*h2;
+  c.strokeStyle='#E5E7EB';c.beginPath();c.moveTo(0,py(0));c.lineTo(w2,py(0));c.moveTo(px(0),0);c.lineTo(px(0),h2);c.stroke();
+  for(let i=0;i<X.length;i++){c.fillStyle=COR.navy;c.beginPath();c.arc(px(X[i]),py(Y[i]),4,0,7);c.fill();}
+  c.strokeStyle=COR.gold;c.lineWidth=3;c.beginPath();c.moveTo(px(-1.2),py(-1.2*w+b));c.lineTo(px(1.2),py(1.2*w+b));c.stroke();
+  ctxL.putImageData(fundo,0,0); ctxL.strokeStyle=COR.gold;ctxL.lineWidth=2;ctxL.beginPath();traj.forEach((p,k)=>{const[x,y]=toPx(...p);k?ctxL.lineTo(x,y):ctxL.moveTo(x,y);});ctxL.stroke();
+  traj.forEach(p=>{const[x,y]=toPx(...p);ctxL.fillStyle=COR.gold;ctxL.beginPath();ctxL.arc(x,y,2.5,0,7);ctxL.fill();});
+  const[x,y]=toPx(w,b);ctxL.fillStyle=COR.verm;ctxL.beginPath();ctxL.arc(x,y,6,0,7);ctxL.fill();
+  ctxL.fillStyle='#fff';ctxL.font='12px sans-serif';ctxL.fillText('w →',W-34,H-6);ctxL.fillText('b ↑',4,14);
+  const e=E(w,b); $('#E').textContent=fmt(e,3); $('#np').textContent=n;
+  $('#w').value=w;$('#b').value=b;$('#vw').textContent=fmt(w);$('#vb').textContent=fmt(b);$('#veta').textContent=fmt(+$('#eta').value);
+  $('#msg').innerHTML= e<0.15? '<span class="ok">Meta atingida! E = '+fmt(e,3)+'.</span> O mínimo deste problema fica perto de E ≈ '+fmt(Emin,3)+'.' : (e>50? '<span class="erro">O erro explodiu: a taxa de aprendizado é grande demais e cada passo "pula" o vale.</span>':'Continue: a meta é E &lt; 0,15.');
+}
+let Emin=1e9; for(let i=0;i<200;i++)for(let j=0;j<200;j++){Emin=Math.min(Emin,E(WR[0]+5*i/200,BR[0]+4*j/200));}
+function passo(est){const eta=+$('#eta').value;let idx=X.map((_,i)=>i);if(est){idx=[];while(idx.length<3){const k=Math.floor(rnd()*X.length);if(!idx.includes(k))idx.push(k);}}
+  let gw=0,gb=0;for(const i of idx){const e=w*X[i]+b-Y[i];gw+=2*e*X[i];gb+=2*e;}gw/=idx.length;gb/=idx.length;
+  w-=eta*gw;b-=eta*gb;w=Math.max(-50,Math.min(50,w));b=Math.max(-50,Math.min(50,b));n++;traj.push([w,b]);desenha();}
+function varios(est){let k=0;const t=setInterval(()=>{passo(est);if(++k>=20)clearInterval(t);},60);}
+function reinicia(){w=-1;b=1;n=0;traj=[[w,b]];desenha();}
+$('#w').oninput=e=>{w=+e.target.value;traj.push([w,b]);desenha();};
+$('#b').oninput=e=>{b=+e.target.value;traj.push([w,b]);desenha();};
+$('#eta').oninput=desenha;
+cL.addEventListener('click',e=>{const r=cL.getBoundingClientRect();w=WR[0]+(WR[1]-WR[0])*(e.clientX-r.left)/r.width;b=BR[1]-(BR[1]-BR[0])*(e.clientY-r.top)/r.height;n=0;traj=[[w,b]];desenha();});
+desenha();
+</script>
+</body></html>

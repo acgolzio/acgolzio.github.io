@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 5 · Modelos de linguagem de N-gramas</title><link rel="stylesheet" href="estilo.css"></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · PLN e Transformers</span></header>
+<main>
+<p class="tag">Atividade 5 · Modelos de linguagem</p>
+<h1>Prever a próxima palavra contando: N-gramas, suavização e perplexidade</h1>
+<section class="caixa azul"><h2>Contexto</h2>
+<p>Um modelo de linguagem atribui probabilidade a sequências de palavras e prevê a próxima palavra dado o contexto. O modelo de N-gramas usa a <b>hipótese de Markov</b>: só as N − 1 palavras anteriores importam. As probabilidades vêm de contagens (estimativa de máxima verossimilhança); a <b>suavização</b> evita probabilidade zero para sequências não vistas; a <b>perplexidade</b> mede quão bem o modelo prevê um texto novo (menor é melhor) (SHANNON, 1948; JURAFSKY; MARTIN, 2024, cap. 3).</p>
+</section>
+<section class="painel"><h2>1. O corpus de treino</h2>
+<textarea id="corpus" style="min-height:8rem"></textarea>
+<div class="linha"><div><label>N</label> <select id="N"><option value="1">1 (unigrama)</option><option value="2" selected>2 (bigrama)</option><option value="3">3 (trigrama)</option></select></div>
+<div><label>Suavização</label> <select id="suav"><option value="none">nenhuma (MLE)</option><option value="lap">soma-um (Laplace)</option><option value="k">soma-k</option></select></div>
+<div class="ctl"><label>k <span class="val" id="vk"></span></label><input type="range" id="k" min="0.01" max="1" step="0.01" value="0.1"></div></div>
+</section>
+<section class="painel"><h2>2. Distribuição da próxima palavra</h2>
+<label>Contexto</label> <input type="text" id="ctx" value="eu" style="width:100%">
+<div id="dist"></div>
+</section>
+<section class="painel"><h2>3. Perplexidade de uma frase nova</h2>
+<input type="text" id="teste" value="eu amo processamento de linguagem" style="width:100%">
+<div id="pp"></div>
+</section>
+<section class="painel"><h2>4. Gere texto amostrando</h2>
+<button onclick="gera()">gerar frase</button><div id="ger" class="revela"></div>
+</section>
+<section class="caixa creme"><h2>Para discutir</h2>
+<ol><li>Shannon (1948) já gerava "texto" com N-gramas de letras e palavras. Quanto maior o N, mais "parecido com língua" fica o texto, mas mais ele copia o corpus. Fluência é o mesmo que entendimento?</li>
+<li>Com MLE, uma frase com um único bigrama nunca visto recebe probabilidade zero: o modelo declara impossível o que só é novo. Que pressupostos sobre o mundo a suavização introduz?</li></ol></section>
+<div class="ref"><p>YADAV, R. <i>NLP</i>: complete developer study notes. [S. l.: s. n.], [202-]. Seção 5.</p>
+<p>SHANNON, C. E. A mathematical theory of communication. <i>The Bell System Technical Journal</i>, v. 27, n. 3, p. 379-423, 1948.</p>
+<p>CHEN, S. F.; GOODMAN, J. An empirical study of smoothing techniques for language modeling. <i>Computer Speech &amp; Language</i>, v. 13, n. 4, p. 359-394, 1999.</p></div>
+</main>
+<script src="pln.js"></script>
+<script>
+$('#corpus').value='eu amo processamento de linguagem natural\neu amo aprendizado de máquina\neu gosto de linguagem\neu odeio ruído nos dados\no modelo aprende a linguagem dos dados\no modelo de linguagem prevê a próxima palavra\neu amo modelos de linguagem';
+let C={},V=[];
+function treina(){const N=+$('#N').value;C={};const vs=new Set(['</s>']);$('#corpus').value.split('\n').forEach(l=>{const t=['<s>','<s>',...tokenizar(l.toLowerCase()),'</s>'];t.forEach(w=>{if(w!=='<s>')vs.add(w);});for(let i=2;i<t.length;i++){const ctx=t.slice(i-N+1,i).join(' ');C[ctx]=C[ctx]||{};C[ctx][t[i]]=(C[ctx][t[i]]||0)+1;}});V=[...vs];}
+function prob(ctx,w){const s=$('#suav').value;const c=C[ctx]||{};const tot=Object.values(c).reduce((a,b)=>a+b,0);const n=c[w]||0;const Vn=V.length;
+ if(s==='none')return tot?n/tot:0;const k=s==='lap'?1:+$('#k').value;return (n+k)/(tot+k*Vn);}
+function ctxDe(tokens){const N=+$('#N').value;const t=['<s>','<s>',...tokens];return t.slice(t.length-(N-1)).join(' ');}
+function dist(){treina();$('#vk').textContent=fmt(+$('#k').value,2);const N=+$('#N').value;const ctx=N===1?'':ctxDe(tokenizar($('#ctx').value.toLowerCase()));const c=C[ctx]||{};const tot=Object.values(c).reduce((a,b)=>a+b,0);
+ const linhas=V.map(w=>[w,c[w]||0,prob(ctx,w)]).sort((a,b)=>b[2]-a[2]).slice(0,10);
+ $('#dist').innerHTML=`<p>Contexto usado pelo modelo: <span class="tok">${esc(ctx||'(nenhum: unigrama)')}</span> &nbsp; contagem do contexto: <b>${tot}</b></p>`+tabela(['Próxima palavra','Contagem','P(palavra | contexto)',''],linhas.map(([w,n,p])=>[esc(w),n,fmt(p,3),`<div class="barra" style="width:180px"><div style="width:${100*p}%"></div></div>`]))+
+ `<p class="muted">Fórmula (MLE): P(w | contexto) = Contagem(contexto, w) / Contagem(contexto). Soma-k: (Contagem(contexto, w) + k) / (Contagem(contexto) + k·V), com V = ${V.length} palavras.</p>`;pp();}
+function pp(){const t=tokenizar($('#teste').value.toLowerCase()).concat(['</s>']);let lp=0;const rows=[];const hist=[];for(const w of t){const ctx=+$('#N').value===1?'':ctxDe(hist);const p=prob(ctx,w);rows.push([esc(ctx||'-'),esc(w),fmt(p,4)]);lp+=Math.log(p);hist.push(w);}
+ const PP=Math.exp(-lp/t.length);$('#pp').innerHTML=tabela(['Contexto','Palavra','Probabilidade'],rows)+`<p class="grande">PP = ${isFinite(PP)?fmt(PP,2):'∞'}</p><p class="muted">PP(W) = P(w₁, …, w_N)^(−1/N). ${isFinite(PP)?'':'Alguma probabilidade é zero: sem suavização, a perplexidade é infinita.'}</p>`;}
+function gera(){treina();let h=[];for(let i=0;i<20;i++){const ctx=+$('#N').value===1?'':ctxDe(h);const ps=V.map(w=>prob(ctx,w));const s=ps.reduce((a,b)=>a+b,0);let r=Math.random()*s,w=V[V.length-1];for(let j=0;j<V.length;j++){r-=ps[j];if(r<=0){w=V[j];break;}}if(w==='</s>')break;h.push(w);}$('#ger').innerHTML='<b>'+esc(h.join(' '))+'</b>';}
+['#corpus','#ctx','#k'].forEach(i=>$(i).oninput=dist);['#N','#suav'].forEach(i=>$(i).onchange=dist);$('#teste').oninput=pp;dist();gera();
+</script>
+</body></html>

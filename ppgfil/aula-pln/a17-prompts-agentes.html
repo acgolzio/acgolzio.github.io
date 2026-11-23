@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 17 · Prompts, ferramentas, agentes e RLHF</title><link rel="stylesheet" href="estilo.css"></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · PLN e Transformers</span></header>
+<main>
+<p class="tag">Atividade 17 · Tópicos avançados</p>
+<h1>Prompts, chamada de funções, agentes e preferências humanas</h1>
+<section class="caixa azul"><h2>Contexto</h2>
+<p><b>Engenharia de prompt</b>: projetar instruções claras, com contexto, exemplos e formato de saída (zero-shot, few-shot, cadeia de pensamento, papel). <b>Chamada de funções</b>: o modelo produz uma chamada estruturada (JSON) a uma ferramenta externa. <b>Agentes</b>: planejam, usam ferramentas, observam o resultado, refletem e repetem. <b>RLHF</b>: pessoas ordenam respostas, um modelo de recompensa aprende essas preferências e o LLM é ajustado por aprendizado por reforço (BROWN et al., 2020; WEI et al., 2022; YAO et al., 2023; OUYANG et al., 2022).</p>
+<p class="muted">Tudo nesta página é <b>simulado</b>: não há LLM rodando; os dados do clima são fictícios.</p>
+</section>
+<section class="painel"><h2>1. Monte um prompt</h2>
+<div class="linha"><div><label>Técnica</label><br><select id="tec"><option value="zero">zero-shot</option><option value="few">few-shot (com exemplos)</option><option value="cot">cadeia de pensamento</option><option value="papel">papel (role prompting)</option><option value="instr">instrução estruturada (exemplo das notas)</option></select></div>
+<div><label>Texto de entrada</label><br><input type="text" id="art" style="width:100%" value="O Transformer processa todos os tokens em paralelo usando atenção."></div></div>
+<pre id="prom"></pre><p id="pexp" class="muted"></p>
+</section>
+<section class="painel"><h2>2. Chamada de funções (function calling)</h2>
+<label>Pergunta do usuário</label> <select id="cid"><option>Tupã</option><option>Marília</option><option>São Paulo</option><option>Lisboa</option></select>
+<div class="linha"><div><h3>Saída do modelo (chamada de função)</h3><pre id="fc"></pre></div><div><h3>Ferramenta executada</h3><pre id="tool"></pre></div></div>
+<div id="fres" class="revela"></div>
+</section>
+<section class="painel"><h2>3. Um agente em ação</h2>
+<p class="muted">Objetivo: "Descubra em que ano o Transformer foi proposto e calcule há quantos anos isso foi."</p>
+<button onclick="passoAg()">próximo passo</button><button class="sec" onclick="reiniciaAg()">recomeçar</button>
+<div class="linha"><div><h3>Rastro do agente</h3><div id="ag"></div></div><div><h3>Memória</h3><pre id="memo">(vazia)</pre></div></div>
+</section>
+<section class="painel"><h2>4. RLHF: suas preferências viram dados de treino</h2>
+<p>Pergunta: <b>"O que é um modelo de linguagem?"</b> Ordene as respostas (1 = melhor).</p>
+<div id="rl"></div><div id="pares"></div>
+</section>
+<section class="caixa creme"><h2>Para discutir</h2>
+<ol><li>No RLHF, as preferências de avaliadores humanos definem o que é uma "boa" resposta. De quem são esses valores, e como eles se tornam normas para milhões de usuários?</li>
+<li>Um agente que planeja, usa ferramentas e corrige o próprio plano tem agência? Quem responde pelas ações que ele executa?</li></ol></section>
+<div class="ref"><p>YADAV, R. <i>NLP</i>: complete developer study notes. [S. l.: s. n.], [202-]. Seção 17.</p>
+<p>WEI, J. et al. Chain-of-thought prompting elicits reasoning in large language models. In: NEURIPS, 35., 2022. <i>Proceedings</i> [...]. Red Hook: Curran Associates, 2022.</p>
+<p>YAO, S. et al. ReAct: synergizing reasoning and acting in language models. In: ICLR, 2023. <i>Proceedings</i> [...]. 2023.</p>
+<p>OUYANG, L. et al. Training language models to follow instructions with human feedback. In: NEURIPS, 35., 2022. <i>Proceedings</i> [...]. Red Hook: Curran Associates, 2022.</p></div>
+</main>
+<script src="pln.js"></script>
+<script>
+function prompt(){const t=$('#art').value,k=$('#tec').value;const P={zero:[`Resuma o texto em uma frase.\n\nTexto: ${t}`,'Zero-shot: só a instrução, sem exemplos.'],
+ few:[`Resuma cada texto em poucas palavras.\n\nTexto: A LSTM usa portas para controlar a memória.\nResumo: memória controlada por portas.\n\nTexto: O BM25 melhora o TF-IDF.\nResumo: TF-IDF aprimorado.\n\nTexto: ${t}\nResumo:`,'Few-shot: exemplos no próprio prompt mostram o formato desejado (aprendizado no contexto; BROWN et al., 2020).'],
+ cot:[`Pergunta: ${t} Isso significa que o Transformer é mais rápido para treinar que uma RNN?\nVamos pensar passo a passo antes de responder.`,'Cadeia de pensamento: pedir passos intermediários de raciocínio (WEI et al., 2022).'],
+ papel:[`Você é um professor de filosofia explicando para calouros.\nExplique o texto abaixo sem jargão técnico.\n\nTexto: ${t}`,'Papel: definir quem "fala" muda o tom e o nível da resposta.'],
+ instr:[`Prompt:\nVocê é um assistente prestativo. Resuma o artigo a seguir em 3 tópicos para um público não técnico.\n\nTexto: {${t}}\n\nSaída:\n• Ponto 1\n• Ponto 2\n• Ponto 3`,'Instrução estruturada com papel, tarefa, público e formato de saída (exemplo da seção 17.2 das notas).']};
+ $('#prom').textContent=P[k][0];$('#pexp').textContent=P[k][1];}
+const CLIMA={'Tupã':[29,'céu limpo'],'Marília':[27,'parcialmente nublado'],'São Paulo':[22,'chuva fraca'],'Lisboa':[15,'vento forte']};
+function fc(){const c=$('#cid').value;$('#fc').textContent=`Usuário: "Qual é o tempo em ${c} agora?"\n\n{\n  "name": "consultar_clima",\n  "arguments": {"cidade": "${c}"}\n}`;const [t,d]=CLIMA[c];
+ $('#tool').textContent=`consultar_clima(cidade="${c}")\n→ {"temperatura": ${t}, "condicao": "${d}"}`;$('#fres').innerHTML=`Resposta final do modelo: <b>"Em ${c}, agora faz ${t} °C, com ${d}."</b> <span class="muted">(dados fictícios)</span>`;}
+const PASSOS=[['Planejar','Preciso de duas coisas: o ano de proposição do Transformer e o ano atual. Vou buscar a primeira na base de documentos.',null],
+ ['Agir (ferramenta)','buscar_documentos("ano de proposição do Transformer")','ano_transformer = ?'],
+ ['Observar','Resultado: "O Transformer foi apresentado em 2017 (VASWANI et al., 2017)."','ano_transformer = 2017'],
+ ['Agir (ferramenta)','data_atual()','ano_transformer = 2017\nano_atual = ?'],
+ ['Observar','Resultado: 2026','ano_transformer = 2017\nano_atual = 2026'],
+ ['Agir (ferramenta)','calculadora("2026 - 2017")','ano_transformer = 2017\nano_atual = 2026\ndiferenca = ?'],
+ ['Observar','Resultado: 9','ano_transformer = 2017\nano_atual = 2026\ndiferenca = 9'],
+ ['Refletir','As duas informações vieram de ferramentas e a conta confere. Posso responder.',null],
+ ['Responder','"O Transformer foi proposto em 2017, há 9 anos."',null]];
+let pa=0;function passoAg(){if(pa>=PASSOS.length)return;const [t,d,m]=PASSOS[pa];$('#ag').innerHTML+=`<p><span class="tok ${t.startsWith('Agir')?'ouro':t==='Responder'?'verde':''}">${pa+1}. ${t}</span> ${esc(d)}</p>`;if(m)$('#memo').textContent=m;pa++;}
+function reiniciaAg(){pa=0;$('#ag').innerHTML='';$('#memo').textContent='(vazia)';}
+const RESP=['Um modelo de linguagem é um sistema que atribui probabilidades a sequências de palavras e, com isso, prevê a próxima palavra de um texto.','É uma inteligência que entende tudo o que lemos e sempre diz a verdade.','Modelo de linguagem: P(w_t | w_1, ..., w_{t-1}).'];
+function rl(){$('#rl').innerHTML=RESP.map((r,i)=>`<p><select class="ord" data-i="${i}">${[1,2,3].map(k=>`<option ${k===i+1?'selected':''}>${k}</option>`).join('')}</select> <b>${'ABC'[i]}.</b> ${esc(r)}</p>`).join('');$$('.ord').forEach(s=>s.onchange=pares);pares();}
+function pares(){const o=$$('.ord').map(s=>+s.value);if(new Set(o).size<3){$('#pares').innerHTML='<p class="erro">Use posições diferentes para cada resposta.</p>';return;}const ids=[0,1,2].sort((a,b)=>o[a]-o[b]);const pp=[];for(let i=0;i<3;i++)for(let j=i+1;j<3;j++)pp.push(`${'ABC'[ids[i]]} ≻ ${'ABC'[ids[j]]}`);
+ $('#pares').innerHTML=`<p>Sua ordenação gera <b>${pp.length} comparações em pares</b> para treinar o modelo de recompensa: ${pp.map(x=>`<span class="tok ouro">${x}</span>`).join('')}</p><p class="muted">O modelo de recompensa aprende a dar nota maior à resposta preferida em cada par; depois, o LLM é ajustado (por exemplo, com PPO) para maximizar essa nota (OUYANG et al., 2022).</p>`;}
+$('#tec').onchange=prompt;$('#art').oninput=prompt;$('#cid').onchange=fc;prompt();fc();rl();
+</script>
+</body></html>

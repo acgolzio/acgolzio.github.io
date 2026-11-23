@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 3 · BoW, TF-IDF e busca</title><link rel="stylesheet" href="estilo.css"></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · PLN e Transformers</span></header>
+<main>
+<p class="tag">Atividade 3 · Representação de texto e recuperação de informação</p>
+<h1>Bag of Words, TF-IDF e BM25: contar palavras para buscar documentos</h1>
+<section class="caixa azul"><h2>Contexto</h2>
+<p>A <b>bolsa de palavras</b> (BoW) representa um texto pela contagem das palavras, ignorando a ordem. O <b>TF-IDF</b> dá mais peso a palavras frequentes no documento e raras na coleção: TF-IDF(w,d) = TF(w,d) × log(N/DF(w)) (SPÄRCK JONES, 1972; SALTON; WONG; YANG, 1975). O <b>BM25</b> melhora o TF-IDF com saturação da frequência e normalização pelo tamanho do documento (ROBERTSON; ZARAGOZA, 2009).</p>
+</section>
+<section class="painel"><h2>1. A coleção (um documento por linha)</h2>
+<p><button class="sec" onclick="carrega('notas')">exemplo das notas (2 documentos)</button><button class="sec" onclick="carrega('pt')">coleção em português</button></p>
+<textarea id="docs" style="min-height:7rem"></textarea>
+<label><input type="checkbox" id="semstop"> remover <i>stopwords</i></label>
+<h3>Bag of Words (contagens)</h3><div id="bow"></div>
+<h3>TF-IDF (TF = contagem; IDF = ln(N/DF))</h3><div id="tfidf"></div>
+<h3>Semelhança de cosseno entre documentos (vetores TF-IDF)</h3><div id="cos"></div>
+</section>
+<section class="painel"><h2>2. Índice invertido</h2><p class="muted">Cada termo aponta para a lista dos documentos que o contêm (a "lista de postagens").</p><div id="inv"></div></section>
+<section class="painel"><h2>3. Busque</h2>
+<input type="text" id="q" style="width:100%" value="aprendizado profundo">
+<div class="linha"><div class="ctl"><label>k₁ (saturação da frequência) <span class="val" id="vk1"></span></label><input type="range" id="k1" min="0" max="3" step="0.1" value="1.5"></div>
+<div class="ctl"><label>b (normalização pelo tamanho) <span class="val" id="vb"></span></label><input type="range" id="b" min="0" max="1" step="0.05" value="0.75"></div></div>
+<div id="rank"></div>
+<h3>Busca booleana</h3><p class="muted">Use AND e OR, por exemplo: <code>banco AND juros</code>.</p>
+<input type="text" id="qb" style="width:100%" value="banco AND juros"><div id="bool"></div>
+</section>
+<section class="caixa creme"><h2>Para discutir</h2>
+<ol><li>Para a BoW, "o cão mordeu o homem" e "o homem mordeu o cão" são idênticas. Que tipo de significado sobrevive quando a ordem desaparece?</li>
+<li>O IDF supõe que palavras raras são mais informativas. Raridade é um bom indicador de relevância? Pense na palavra "não".</li></ol></section>
+<div class="ref"><p>YADAV, R. <i>NLP</i>: complete developer study notes. [S. l.: s. n.], [202-]. Seções 3 e 13.</p>
+<p>SPÄRCK JONES, K. A statistical interpretation of term specificity and its application in retrieval. <i>Journal of Documentation</i>, v. 28, n. 1, p. 11-21, 1972.</p>
+<p>ROBERTSON, S.; ZARAGOZA, H. The probabilistic relevance framework: BM25 and beyond. <i>Foundations and Trends in Information Retrieval</i>, v. 3, n. 4, p. 333-389, 2009.</p>
+<p>MANNING, C. D.; RAGHAVAN, P.; SCHÜTZE, H. <i>Introduction to information retrieval</i>. Cambridge: Cambridge University Press, 2008.</p></div>
+</main>
+<script src="pln.js"></script>
+<script>
+const COL={notas:'I love machine learning\nI love deep learning',pt:'O banco aumentou os juros do empréstimo\nSentei no banco da praça para ler\nO aprendizado profundo usa redes neurais com muitas camadas\nRedes neurais aprendem representações a partir de dados\nO banco central decidiu manter os juros\nAprendizado de máquina e aprendizado profundo no processamento de linguagem'};
+let D=[],V=[],idx={};
+function carrega(k){$('#docs').value=COL[k];$('#q').value=k==='notas'?'machine learning':'aprendizado profundo';roda();}
+function prep(t){let w=tokenizar(t.toLowerCase());if($('#semstop').checked)w=w.filter(x=>!STOP.pt.has(x)&&!STOP.en.has(x));return w;}
+function roda(){D=$('#docs').value.split('\n').map(s=>s.trim()).filter(Boolean).map(prep);({V,idx}=vocabularioDe(D));const N=D.length;
+ const tf=D.map(d=>V.map(w=>d.filter(x=>x===w).length));const df=V.map((w,j)=>tf.filter(r=>r[j]>0).length);const idf=df.map(x=>Math.log(N/x));const tfidf=tf.map(r=>r.map((v,j)=>v*idf[j]));
+ window.TFIDF=tfidf;window.IDF=idf;window.TF=tf;window.DF=df;
+ $('#bow').innerHTML=tabela(['Palavra',...D.map((_,i)=>'D'+(i+1))],V.map((w,j)=>[w,...tf.map(r=>r[j])]));
+ $('#tfidf').innerHTML=tabela(['Palavra',...D.map((_,i)=>'TF (D'+(i+1)+')'),'DF','IDF',...D.map((_,i)=>'TF-IDF (D'+(i+1)+')')],V.map((w,j)=>[w,...tf.map(r=>r[j]),df[j],fmt(idf[j],2),...tfidf.map(r=>`<b>${fmt(r[j],2)}</b>`)]));
+ const C=tfidf.map(a=>tfidf.map(b=>cosseno(a,b)));$('#cos').innerHTML=matrizHTML(C,D.map((_,i)=>'D'+(i+1)),D.map((_,i)=>'D'+(i+1)),2,1);
+ $('#inv').innerHTML=tabela(['Termo','Lista de postagens (documentos)'],V.map((w,j)=>[w,'['+tf.map((r,i)=>r[j]?i+1:null).filter(x=>x).join(', ')+']']));busca();booleana();}
+function busca(){const k1=+$('#k1').value,b=+$('#b').value;$('#vk1').textContent=fmt(k1,1);$('#vb').textContent=fmt(b,2);const q=prep($('#q').value);const N=D.length;const avg=D.reduce((s,d)=>s+d.length,0)/N;
+ const qv=V.map((w,j)=>q.filter(x=>x===w).length*IDF[j]);
+ const res=D.map((d,i)=>{const c=cosseno(qv,TFIDF[i]);let bm=0;q.forEach(t=>{if(!(t in idx))return;const j=idx[t];const f=TF[i][j];const idfb=Math.log((N-DF[j]+0.5)/(DF[j]+0.5)+1);bm+=idfb*f*(k1+1)/(f+k1*(1-b+b*d.length/avg));});return {i,c,bm,txt:$('#docs').value.split('\n').filter(s=>s.trim())[i]};});
+ const r1=[...res].sort((a,b)=>b.c-a.c),r2=[...res].sort((a,b)=>b.bm-a.bm);
+ $('#rank').innerHTML=`<div class="linha"><div><h3>Ranking por TF-IDF (cosseno)</h3>${tabela(['#','Doc','Escore'],r1.map((r,k)=>[k+1,`D${r.i+1}: ${esc(r.txt)}`,fmt(r.c,3)]))}</div><div><h3>Ranking por BM25</h3>${tabela(['#','Doc','Escore'],r2.map((r,k)=>[k+1,`D${r.i+1}: ${esc(r.txt)}`,fmt(r.bm,3)]))}</div></div><p class="muted">Termos da busca fora do vocabulário são ignorados. No BM25 usamos IDF = ln((N − DF + 0,5)/(DF + 0,5) + 1), variante comum que evita valores negativos.</p>`;}
+function booleana(){const q=$('#qb').value.trim().toLowerCase();if(!q){$('#bool').innerHTML='';return;}const N=D.length;const doc=t=>new Set(D.map((d,i)=>d.includes(t)?i:-1).filter(i=>i>=0));
+ const ors=q.split(/\s+or\s+/);let total=new Set();ors.forEach(o=>{const ands=o.split(/\s+and\s+/).map(s=>s.trim());let s=null;ands.forEach(t=>{const dt=doc(t);s=s===null?dt:new Set([...s].filter(x=>dt.has(x)));});(s||new Set()).forEach(x=>total.add(x));});
+ $('#bool').innerHTML=`<p>Documentos que satisfazem a consulta: <b>${[...total].sort((a,b)=>a-b).map(i=>'D'+(i+1)).join(', ')||'nenhum'}</b>. A busca booleana não ordena por relevância: ou o documento casa, ou não casa.</p>`;}
+['#k1','#b','#q'].forEach(i=>$(i).oninput=busca);$('#qb').oninput=booleana;$('#docs').oninput=roda;$('#semstop').onchange=roda;
+carrega('pt');
+</script>
+</body></html>

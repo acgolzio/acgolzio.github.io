@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 7 · Memória nas redes recorrentes</title><link rel="stylesheet" href="estilo.css"></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · Aula de 24/11</span></header>
+<main>
+<p class="tag">Atividade 7 · LeCun, Bengio e Hinton (2015), p. 441-442</p>
+<h1>Memória nas redes recorrentes: lembrar, esquecer, explodir</h1>
+<section class="caixa azul"><h2>Contexto</h2>
+<p>Uma rede recorrente (RNN) lê uma sequência um elemento por vez e mantém um <b>vetor de estado</b> que resume implicitamente toda a história lida. Desdobrada no tempo, ela é uma rede profunda em que todas as camadas compartilham os mesmos pesos (U, V, W). O problema: na retropropagação o gradiente é multiplicado a cada passo e, ao longo de muitos passos, tende a <b>explodir</b> ou <b>sumir</b>. A LSTM resolve isso com uma célula de memória que se copia com peso 1, controlada por uma "porta" que decide quando apagar (LECUN; BENGIO; HINTON, 2015, p. 441-442).</p>
+</section>
+<section class="painel">
+<h2>1. Desdobrando a RNN numa frase</h2>
+<p class="muted">s<sub>t</sub> = tanh(U·x<sub>t</sub> + W·s<sub>t−1</sub>). O estado tem 4 componentes (cores). Os mesmos U e W são usados em todos os passos.</p>
+<input type="text" id="frase" value="o gato que eu vi ontem subiu no telhado" style="width:100%">
+<canvas id="cR" width="900" height="250" style="margin-top:.6rem"></canvas>
+<p class="muted">Repare que o estado no fim da frase ainda carrega (um pouco) do começo. Quanto?</p>
+</section>
+<section class="painel">
+<h2>2. Gradientes que somem ou explodem</h2>
+<div class="linha"><div>
+<div class="ctl"><label>Fator multiplicado a cada passo (|w · f′|) <span class="val" id="vf"></span></label><input type="range" id="fat" min="0.5" max="1.5" step="0.01" value="0.9"></div>
+<div class="ctl"><label>Distância no tempo (passos) <span class="val" id="vT"></span></label><input type="range" id="T" min="1" max="100" value="30"></div>
+<p>Sinal de erro que chega ao passo inicial: <span class="grande num" id="g"></span> vezes o original</p><p id="gmsg"></p></div>
+<div class="centro"><canvas id="cG" width="380" height="240"></canvas></div></div>
+</section>
+<section class="painel">
+<h2>3. A ideia da LSTM: uma célula que se copia</h2>
+<p class="muted">Uma informação entra na célula de memória no passo 1. A cada passo a célula multiplica seu conteúdo pela porta de esquecimento g (o peso da autoconexão é 1, "modulado" pela porta).</p>
+<div class="ctl"><label>Porta de esquecimento g <span class="val" id="vg"></span></label><input type="range" id="gate" min="0.5" max="1" step="0.005" value="1"></div>
+<div class="ctl"><label>Apagar a memória no passo <span class="val" id="vap"></span></label><input type="range" id="ap" min="5" max="101" value="101"></div>
+<canvas id="cM" width="900" height="170"></canvas>
+</section>
+<section class="caixa creme"><h2>Para discutir</h2>
+<ol><li>O artigo descreve um codificador que lê uma frase em inglês e resume seu sentido num "vetor de pensamento", depois traduzido para o francês. Os autores concluem que isso lança "sérias dúvidas" sobre a necessidade de expressões simbólicas internas para compreender uma frase (p. 441). A conclusão se segue?</li>
+<li>Uma memória que nunca esquece é desejável? A porta que aprende <b>quando apagar</b> sugere que esquecer também é uma função cognitiva.</li></ol></section>
+<div class="ref"><p>LECUN, Y.; BENGIO, Y.; HINTON, G. Deep learning. <i>Nature</i>, v. 521, n. 7553, p. 436-444, 2015.</p>
+<p>HOCHREITER, S.; SCHMIDHUBER, J. Long short-term memory. <i>Neural Computation</i>, v. 9, n. 8, p. 1735-1780, 1997.</p></div>
+</main>
+<script src="comum.js"></script>
+<script>
+const cores=['#123B6A','#A87A36','#1D9E75','#C2413B'];
+let sd=5;const rr=()=>{sd=(sd*16807)%2147483647;return sd/2147483647-0.5;};
+const Wm=[...Array(4)].map(()=>[...Array(4)].map(()=>rr()*1.4)); const emb={};
+function vetor(p){if(!emb[p]){let h=0;for(const c of p)h=(h*31+c.charCodeAt(0))%100000;let s=h+1;emb[p]=[...Array(4)].map(()=>{s=(s*16807)%2147483647;return (s/2147483647-0.5)*2;});}return emb[p];}
+function rnn(){const pal=$('#frase').value.trim().split(/\s+/).filter(Boolean).slice(0,14);const c=$('#cR').getContext('2d'),w=900,h=250;c.fillStyle='#fff';c.fillRect(0,0,w,h);
+ let s=[0,0,0,0];const n=pal.length,dx=Math.min(110,(w-40)/Math.max(n,1));const est=[];
+ pal.forEach(p=>{const x=vetor(p);s=s.map((_,i)=>Math.tanh(x[i]*0.9+Wm[i].reduce((a,wij,j)=>a+wij*s[j],0)));est.push(s.slice());});
+ pal.forEach((p,k)=>{const x0=20+k*dx;c.fillStyle='#F3F4F6';c.fillRect(x0,30,dx-12,140);
+  est[k].forEach((v,i)=>{const bw=(dx-20)/4;c.fillStyle=cores[i];const hh=v*60;c.fillRect(x0+4+i*bw,100-Math.max(0,hh),bw-2,Math.abs(hh));});
+  c.strokeStyle='#D1D5DB';c.beginPath();c.moveTo(x0,100);c.lineTo(x0+dx-12,100);c.stroke();
+  c.fillStyle=COR.navy;c.font='bold 14px sans-serif';c.textAlign='center';c.fillText(p,x0+(dx-12)/2,200);c.font='12px sans-serif';c.fillStyle='#6B7280';c.fillText('x'+(k+1),x0+(dx-12)/2,218);c.fillText('s'+(k+1),x0+(dx-12)/2,22);
+  if(k<n-1){c.fillStyle=COR.gold;c.font='bold 12px sans-serif';c.fillText('W →',x0+dx-6,105);}
+  c.fillStyle=COR.gold;c.fillText('U ↑',x0+(dx-12)/2,186);});
+ c.textAlign='left';}
+$('#frase').oninput=rnn;rnn();
+function grad(){const f=+$('#fat').value,T=+$('#T').value;$('#vf').textContent=fmt(f);$('#vT').textContent=T;const g=Math.pow(f,T);
+ $('#g').textContent=g>1e6||g<1e-4?g.toExponential(1).replace('.',','):fmt(g,4);
+ $('#gmsg').innerHTML=g>100?'<span class="erro">Explodiu: o aprendizado fica instável.</span>':g<0.01?'<span class="erro">Sumiu: o que aconteceu longe no passado praticamente não influencia o aprendizado.</span>':'<span class="ok">Ainda utilizável.</span>';
+ const c=$('#cG').getContext('2d'),w=380,h=240;c.fillStyle='#fff';c.fillRect(0,0,w,h);const L=v=>h-20-(Math.log10(v)+4)/8*(h-40);
+ c.strokeStyle='#E5E7EB';[-4,-2,0,2,4].forEach(e=>{const y=h-20-(e+4)/8*(h-40);c.beginPath();c.moveTo(30,y);c.lineTo(w,y);c.stroke();c.fillStyle='#6B7280';c.font='11px sans-serif';c.fillText('10^'+e,0,y+4);});
+ c.strokeStyle=COR.gold;c.lineWidth=3;c.beginPath();for(let t=0;t<=100;t++){const v=Math.max(1e-4,Math.min(1e4,Math.pow(f,t)));const x=30+t/100*(w-40);t?c.lineTo(x,L(v)):c.moveTo(x,L(v));}c.stroke();
+ const xT=30+T/100*(w-40);c.fillStyle=COR.verm;c.beginPath();c.arc(xT,L(Math.max(1e-4,Math.min(1e4,g))),5,0,7);c.fill();c.fillStyle='#6B7280';c.fillText('passos →',w-60,h-4);}
+['#fat','#T'].forEach(i=>$(i).oninput=grad);grad();
+function mem(){const g=+$('#gate').value,ap=+$('#ap').value;$('#vg').textContent=fmt(g,3);$('#vap').textContent=ap>100?'nunca':ap;
+ const c=$('#cM').getContext('2d'),w=900,h=170;c.fillStyle='#fff';c.fillRect(0,0,w,h);let m=1;
+ for(let t=1;t<=100;t++){if(t===ap)m=0;const x=20+(t-1)*(w-40)/100;c.fillStyle=t===1?COR.gold:COR.navy;const hh=m*120;c.fillRect(x,140-hh,(w-40)/100-1,hh);m*=g;}
+ c.fillStyle='#6B7280';c.font='12px sans-serif';c.fillText('conteúdo da célula ao longo de 100 passos',20,160);}
+['#gate','#ap'].forEach(i=>$(i).oninput=mem);mem();
+</script>
+</body></html>

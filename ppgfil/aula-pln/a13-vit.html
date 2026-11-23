@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 13 · Vision Transformer</title><link rel="stylesheet" href="estilo.css"></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · PLN e Transformers</span></header>
+<main>
+<p class="tag">Atividade 13 · Transformers para imagens</p>
+<h1>"Uma imagem vale 16 × 16 palavras": recortando uma foto em tokens</h1>
+<section class="caixa azul"><h2>Contexto</h2>
+<p>O Vision Transformer (ViT) aplica a mesma arquitetura a imagens: a imagem H × W × 3 é dividida em <b>retalhos</b> (patches) P × P sem sobreposição; cada retalho é achatado num vetor de P²·3 números e projetado linearmente para d<sub>model</sub>. Somam-se embeddings de posição, acrescenta-se um token [CLS] e a sequência passa por um codificador Transformer comum (DOSOVITSKIY et al., 2021).</p>
+</section>
+<section class="painel"><h2>1. Escolha o tamanho do retalho</h2>
+<div class="ctl"><label>P <span class="val" id="vP"></span></label><input type="range" id="P" min="0" max="5" value="2"></div>
+<div class="linha"><div class="centro"><canvas id="cv" width="336" height="336"></canvas></div><div id="info"></div></div>
+</section>
+<section class="painel"><h2>2. A imagem como sequência</h2><p class="muted">Os retalhos lidos em ordem (como palavras numa frase), cada um com seu índice de posição. Toque num retalho da imagem para vê-lo achatado.</p><canvas id="seq" width="860" height="120"></canvas><div id="pat"></div></section>
+<section class="caixa creme"><h2>Para discutir</h2>
+<ol><li>O ViT trata uma imagem como uma "frase" de retalhos. Ver é uma forma de ler? O que a analogia entre visão e linguagem esconde?</li>
+<li>A rede convolucional da aula passada embutia vizinhança espacial na arquitetura; o ViT precisa aprendê-la quase toda dos dados (por isso exige mais dados). O que isso diz sobre o papel do conhecimento prévio?</li></ol></section>
+<div class="ref"><p>YADAV, R. <i>Transformer architecture</i>: complete developer study notes. [S. l.: s. n.], [202-]. Seção 14.</p>
+<p>DOSOVITSKIY, A. et al. An image is worth 16x16 words: transformers for image recognition at scale. In: ICLR, 2021. <i>Proceedings</i> [...]. 2021.</p>
+<p class="muted">Foto: gato "Chelsea", do conjunto de imagens do scikit-image (domínio público).</p></div>
+</main>
+<script src="pln.js"></script>
+<script>
+const PS=[8,14,16,28,32,56];const im=new Image();im.src='gato224.jpg';let sel=0;
+function roda(){if(!im.complete)return;const P=PS[+$('#P').value];$('#vP').textContent=P+' × '+P;const n=224/P,N=n*n;const c=$('#cv').getContext('2d');const s=336/224;c.drawImage(im,0,0,336,336);c.strokeStyle='rgba(255,255,255,.9)';c.lineWidth=1;
+ for(let i=1;i<n;i++){c.beginPath();c.moveTo(i*P*s,0);c.lineTo(i*P*s,336);c.moveTo(0,i*P*s);c.lineTo(336,i*P*s);c.stroke();}
+ const r=Math.floor(sel/n),q=sel%n;c.strokeStyle=COR.gold;c.lineWidth=3;c.strokeRect(q*P*s,r*P*s,P*s,P*s);
+ $('#info').innerHTML=tabela(['Grandeza','Valor'],[['Imagem','224 × 224 × 3'],['Retalho','P × P × 3 = '+P+' × '+P+' × 3'],['Número de retalhos N','(224/'+P+')² = '+n+'² = <b>'+N+'</b>'],['Vetor achatado por retalho','P²·3 = <b>'+(P*P*3)+'</b>'],['Projeção linear W','('+(P*P*3)+' × d<sub>model</sub>)'],['Sequência de entrada','[CLS] + '+N+' retalhos = '+(N+1)+' tokens'],['Custo da atenção ∝ N²','≈ '+((N+1)**2).toLocaleString('pt-BR')]])+(P===16?'<p class="ok">Exatamente o exemplo das notas: N = 196 e 16 × 16 × 3 = 768.</p>':'<p class="muted">Retalhos menores = mais tokens = atenção mais cara (cresce com o quadrado de N).</p>');
+ const sq=$('#seq').getContext('2d');sq.fillStyle='#fff';sq.fillRect(0,0,860,120);const m=Math.min(N,40),w=Math.min(40,(860-60)/(m+1));sq.fillStyle=COR.navy;sq.fillRect(4,20,w-4,w-4);sq.fillStyle='#fff';sq.font='bold 10px sans-serif';sq.fillText('CLS',6,20+w/2);
+ for(let k=0;k<m;k++){const rr=Math.floor(k/n),qq=k%n;sq.drawImage(im,qq*P,rr*P,P,P,4+(k+1)*w,20,w-4,w-4);sq.fillStyle='#6B7280';sq.font='10px sans-serif';sq.fillText(k+1,4+(k+1)*w+2,20+w+12);}if(N>m){sq.fillStyle='#6B7280';sq.font='13px sans-serif';sq.fillText('… até '+N,4+(m+1)*w+4,20+w/2);}
+ const t=document.createElement('canvas');t.width=P;t.height=P;const tc=t.getContext('2d');tc.drawImage(im,q*P,r*P,P,P,0,0,P,P);const vals=[];try{const d=tc.getImageData(0,0,P,P).data;for(let i=0;i<Math.min(P*P,8);i++)vals.push(d[4*i],d[4*i+1],d[4*i+2]);}catch(e){vals.push('…');}
+ $('#pat').innerHTML='<p>Retalho nº <b>'+(sel+1)+'</b> (linha '+(r+1)+', coluna '+(q+1)+') achatado: ['+vals.join(', ')+', …] → '+(P*P*3)+' números (R, G, B de cada pixel).</p>';}
+$('#cv').addEventListener('click',e=>{const P=PS[+$('#P').value];const n=224/P;const b=$('#cv').getBoundingClientRect();const x=(e.clientX-b.left)/b.width*224,y=(e.clientY-b.top)/b.height*224;sel=Math.floor(y/P)*n+Math.floor(x/P);roda();});
+$('#P').oninput=()=>{sel=0;roda();};im.onload=roda;roda();
+</script>
+</body></html>

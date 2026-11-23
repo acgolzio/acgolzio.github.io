@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 8 · Capacidade e generalização</title><link rel="stylesheet" href="estilo.css"></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · Aula de 24/11</span></header>
+<main>
+<p class="tag">Atividade 8 · LeCun et al. (1998), seção I-A</p>
+<h1>Capacidade e generalização: decorar não é aprender</h1>
+<section class="caixa azul"><h2>Contexto</h2>
+<p>O desempenho no treino interessa pouco; o que importa é o erro em exemplos novos (conjunto de teste). LeCun et al. (1998, p. 2279-2280) resumem resultados teóricos e experimentais: a lacuna entre erro de teste e de treino cai com o número de exemplos <i>P</i> e cresce com a <b>capacidade</b> <i>h</i> da máquina, aproximadamente como E<sub>test</sub> − E<sub>train</sub> = k(h/P)<sup>α</sup>, com α entre 0,5 e 1. Há, portanto, uma capacidade ótima. A <b>minimização do risco estrutural</b> controla esse compromisso penalizando a capacidade.</p>
+<p>Aqui a "máquina" é um polinômio; seu grau faz o papel da capacidade.</p>
+</section>
+<section class="painel">
+<canvas id="cF" width="860" height="330"></canvas>
+<div class="linha">
+ <div><div class="ctl"><label>Capacidade (grau do polinômio) <span class="val" id="vd"></span></label><input type="range" id="d" min="0" max="15" value="3"></div>
+ <div class="ctl"><label>Exemplos de treino P <span class="val" id="vP"></span></label><input type="range" id="P" min="6" max="80" value="12"></div>
+ <button class="sec" onclick="novos()">sortear novos dados</button></div>
+ <div><p>Erro de treino: <span class="grande num" id="etr"></span></p><p>Erro de teste: <span class="grande num" id="ete" style="color:var(--verm)"></span></p><p>Lacuna: <b id="gap"></b></p></div>
+</div>
+<h3>Erro em função da capacidade (mesmos dados)</h3>
+<canvas id="cC" width="860" height="230"></canvas>
+<div class="revela"><b>Experimentos:</b> (1) Com P = 12, aumente o grau até 15: o que acontece com o erro de treino e com o de teste? (2) Agora aumente P para 80 mantendo o grau alto. (3) Onde fica a capacidade ótima quando há muitos dados?</div>
+</section>
+<section class="caixa creme"><h2>Para discutir</h2>
+<ol><li>Infinitas curvas passam por um número finito de pontos. Por que preferir a mais "simples"? É o problema da indução (Hume) e o enigma de Goodman: os dados sozinhos não escolhem a hipótese.</li>
+<li>A minimização do risco estrutural transforma uma preferência por simplicidade num termo matemático (βH(W)). Isso resolve o problema da indução ou apenas o administra?</li></ol></section>
+<div class="ref"><p>LECUN, Y. et al. Gradient-based learning applied to document recognition. <i>Proceedings of the IEEE</i>, v. 86, n. 11, p. 2278-2324, 1998.</p>
+<p>HUME, D. <i>Investigações sobre o entendimento humano e sobre os princípios da moral</i>. Tradução de José Oscar de Almeida Marques. São Paulo: Editora UNESP, 2004.</p>
+<p>GOODMAN, N. <i>Fact, fiction, and forecast</i>. Cambridge, MA: Harvard University Press, 1955.</p>
+<p>VAPNIK, V. N. <i>The nature of statistical learning theory</i>. New York: Springer, 1995.</p></div>
+</main>
+<script src="comum.js"></script>
+<script>
+const f=x=>Math.sin(2.5*x)+0.3*x; let sd=3;const rnd=()=>{sd=(sd*16807)%2147483647;return sd/2147483647;};const gauss=()=>{let u=0;while(!u)u=rnd();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*rnd());};
+let XT=[],YT=[],XS=[],YS=[];
+function novos(){XT=[];YT=[];for(let i=0;i<80;i++){const x=rnd()*2-1;XT.push(x);YT.push(f(x)+0.25*gauss());}XS=[];YS=[];for(let i=0;i<300;i++){const x=rnd()*2-1;XS.push(x);YS.push(f(x)+0.25*gauss());}tudo();}
+const cheb=(x,d)=>{const T=[1,x];for(let k=2;k<=d;k++)T.push(2*x*T[k-1]-T[k-2]);return T.slice(0,d+1);};
+function ajusta(X,Y,d){const m=d+1,A=[...Array(m)].map(()=>Array(m).fill(0)),b=Array(m).fill(0);X.forEach((x,i)=>{const t=cheb(x,d);for(let r=0;r<m;r++){b[r]+=t[r]*Y[i];for(let c=0;c<m;c++)A[r][c]+=t[r]*t[c];}});
+ for(let r=0;r<m;r++)A[r][r]+=1e-7;for(let i=0;i<m;i++){let p=i;for(let k=i+1;k<m;k++)if(Math.abs(A[k][i])>Math.abs(A[p][i]))p=k;[A[i],A[p]]=[A[p],A[i]];[b[i],b[p]]=[b[p],b[i]];for(let k=i+1;k<m;k++){const q=A[k][i]/A[i][i];for(let c=i;c<m;c++)A[k][c]-=q*A[i][c];b[k]-=q*b[i];}}
+ const a=Array(m).fill(0);for(let i=m-1;i>=0;i--){let s=b[i];for(let c=i+1;c<m;c++)s-=A[i][c]*a[c];a[i]=s/A[i][i];}return x=>cheb(x,d).reduce((s,t,k)=>s+t*a[k],0);}
+const mse=(g,X,Y)=>X.reduce((s,x,i)=>s+(g(x)-Y[i])**2,0)/X.length;
+function tudo(){const d=+$('#d').value,P=+$('#P').value;$('#vd').textContent=d;$('#vP').textContent=P;const X=XT.slice(0,P),Y=YT.slice(0,P);const g=ajusta(X,Y,d);
+ const etr=mse(g,X,Y),ete=mse(g,XS,YS);$('#etr').textContent=fmt(etr,3);$('#ete').textContent=fmt(Math.min(ete,99),3);$('#gap').textContent=fmt(Math.min(ete,99)-etr,3);
+ const c=$('#cF').getContext('2d'),w=860,h=330;c.fillStyle='#fff';c.fillRect(0,0,w,h);const px=x=>(x+1.05)/2.1*w,py=y=>h/2-y*h/4;
+ XS.forEach((x,i)=>{c.fillStyle='rgba(194,65,59,.25)';c.beginPath();c.arc(px(x),py(YS[i]),2.5,0,7);c.fill();});
+ c.strokeStyle='#9CA3AF';c.setLineDash([6,4]);c.lineWidth=2;c.beginPath();for(let k=0;k<=200;k++){const x=-1+2*k/200;k?c.lineTo(px(x),py(f(x))):c.moveTo(px(x),py(f(x)));}c.stroke();c.setLineDash([]);
+ c.strokeStyle=COR.gold;c.lineWidth=3;c.beginPath();for(let k=0;k<=400;k++){const x=-1+2*k/400;let y=g(x);y=Math.max(-3,Math.min(3,y));k?c.lineTo(px(x),py(y)):c.moveTo(px(x),py(y));}c.stroke();
+ X.forEach((x,i)=>{c.fillStyle=COR.navy;c.beginPath();c.arc(px(x),py(Y[i]),5,0,7);c.fill();});
+ c.font='13px sans-serif';c.fillStyle=COR.navy;c.fillText('● treino',10,18);c.fillStyle=COR.verm;c.fillText('● teste',80,18);c.fillStyle='#6B7280';c.fillText('- - - função verdadeira',140,18);c.fillStyle=COR.gold;c.fillText('━ modelo ajustado',310,18);
+ // curva de erros
+ const cc=$('#cC').getContext('2d'),W2=860,H2=230;cc.fillStyle='#fff';cc.fillRect(0,0,W2,H2);const tr=[],te=[];for(let k=0;k<=15;k++){const gk=ajusta(X,Y,k);tr.push(Math.max(1e-3,mse(gk,X,Y)));te.push(Math.min(100,mse(gk,XS,YS)));}
+ const lo=Math.log10(1e-3),hi=Math.log10(Math.max(...te,1));const qx=k=>40+k*(W2-60)/15,qy=v=>H2-25-(Math.log10(v)-lo)/(hi-lo)*(H2-45);
+ cc.strokeStyle='#E5E7EB';cc.beginPath();cc.moveTo(40,H2-25);cc.lineTo(W2,H2-25);cc.stroke();
+ [[tr,COR.navy],[te,COR.verm]].forEach(([s,col])=>{cc.strokeStyle=col;cc.lineWidth=3;cc.beginPath();s.forEach((v,k)=>k?cc.lineTo(qx(k),qy(v)):cc.moveTo(qx(k),qy(v)));cc.stroke();});
+ const kb=te.indexOf(Math.min(...te));cc.strokeStyle=COR.gold;cc.setLineDash([5,4]);cc.beginPath();cc.moveTo(qx(kb),10);cc.lineTo(qx(kb),H2-25);cc.stroke();cc.setLineDash([]);
+ cc.fillStyle=COR.gold;cc.beginPath();cc.arc(qx(d),qy(te[d]),6,0,7);cc.fill();
+ cc.fillStyle='#6B7280';cc.font='12px sans-serif';for(let k=0;k<=15;k+=3)cc.fillText(k,qx(k)-3,H2-8);cc.fillText('grau do polinômio →',395,H2-8);cc.fillStyle=COR.navy;cc.fillText('treino',46,16);cc.fillStyle=COR.verm;cc.fillText('teste',96,16);cc.fillStyle='#6B7280';cc.fillText('(escala logarítmica)',140,16);cc.fillStyle=COR.gold;cc.fillText('melhor grau: '+kb,qx(kb)+6,44);}
+['#d','#P'].forEach(i=>$(i).oninput=tudo);novos();
+</script>
+</body></html>

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 4 · Embeddings de palavras</title><link rel="stylesheet" href="estilo.css"></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · PLN e Transformers</span></header>
+<main>
+<p class="tag">Atividade 4 · Embeddings</p>
+<h1>"Conhecerás a palavra pela companhia que ela mantém"</h1>
+<section class="caixa azul"><h2>Contexto</h2>
+<p>Embeddings são vetores densos que representam palavras num espaço contínuo: palavras com sentidos parecidos ficam próximas. Eles são aprendidos de grandes corpora (Word2Vec, GloVe, FastText). Aqui calculamos embeddings de verdade, no navegador, a partir de um pequeno corpus em português: contamos quais palavras aparecem perto de quais (janela de 2 palavras), calculamos a informação mútua pontual positiva (PPMI) e reduzimos a dimensão por decomposição em valores singulares. É a mesma intuição do GloVe: estatística global de coocorrência (PENNINGTON; SOCHER; MANNING, 2014; LEVY; GOLDBERG; DAGAN, 2015).</p>
+</section>
+<section class="painel"><h2>1. O mapa semântico</h2>
+<canvas id="mapa" width="860" height="520"></canvas>
+<p class="muted">Projeção em 2D dos embeddings de 10 dimensões. Corpus gerado por modelos de frases (veja no fim da página).</p>
+</section>
+<section class="painel"><h2>2. Vizinhos mais próximos</h2>
+<div class="linha"><div><label>Palavra</label> <select id="pal"></select></div><div id="viz"></div></div>
+<h3>One-hot contra embedding</h3><div id="oh"></div>
+</section>
+<section class="painel"><h2>3. O mesmo "banco", contextos diferentes</h2>
+<p class="muted">Embeddings estáticos dão um único vetor para "banco". Embeddings contextuais (ELMo, BERT) dão vetores diferentes conforme a frase. Simulação simplificada: misturamos o vetor de "banco" com a média dos vetores das palavras ao redor (o BERT faz algo mais sofisticado, com atenção).</p>
+<select id="ctx" style="width:100%"><option>fui ao banco pagar os juros do empréstimo</option><option>sentei no banco da praça perto do parque</option><option>o banco abriu uma conta para guardar dinheiro</option><option>o banco de madeira fica no jardim do parque</option></select>
+<div id="ctxres"></div>
+</section>
+<section class="painel"><h2>4. Como o Word2Vec monta seus exemplos de treino</h2>
+<div class="linha"><div><input type="text" id="fw" style="width:100%" value="o gato dorme no sofá da sala"></div><div class="ctl"><label>janela <span class="val" id="vjan"></span></label><input type="range" id="jan" min="1" max="3" value="2"></div></div>
+<div class="linha"><div><h3>CBOW: contexto → alvo</h3><div id="cbow"></div></div><div><h3>Skip-gram: alvo → contexto</h3><div id="sg"></div></div></div>
+</section>
+<section class="caixa creme"><h2>Para discutir</h2>
+<ol><li>Harris (1954) e Firth (1957) propuseram que o significado de uma palavra se revela pela sua distribuição; Wittgenstein (1999, §43) disse que o significado é o uso. Um embedding é uma formalização dessa ideia? O que ele não captura (referência, verdade, intenção)?</li>
+<li>O vetor de "banco" ficou entre "juros" e "praça". Ambiguidade é um defeito da língua ou um recurso que só o contexto resolve (o princípio do contexto de Frege)?</li></ol></section>
+<div class="ref"><p>YADAV, R. <i>NLP</i>: complete developer study notes. [S. l.: s. n.], [202-]. Seções 3 e 4.</p>
+<p>MIKOLOV, T. et al. Efficient estimation of word representations in vector space. arXiv:1301.3781, 2013.</p>
+<p>PENNINGTON, J.; SOCHER, R.; MANNING, C. D. GloVe: global vectors for word representation. In: EMNLP, 2014, Doha. <i>Proceedings</i> [...]. Stroudsburg: ACL, 2014. p. 1532-1543.</p>
+<p>LEVY, O.; GOLDBERG, Y.; DAGAN, I. Improving distributional similarity with lessons learned from word embeddings. <i>Transactions of the ACL</i>, v. 3, p. 211-225, 2015.</p>
+<p>HARRIS, Z. S. Distributional structure. <i>Word</i>, v. 10, n. 2-3, p. 146-162, 1954.</p>
+<p>FIRTH, J. R. A synopsis of linguistic theory, 1930-1955. In: <i>Studies in linguistic analysis</i>. Oxford: Blackwell, 1957. p. 1-32.</p></div>
+<details><summary class="muted">Ver o corpus</summary><pre id="corp"></pre></details>
+</main>
+<script src="pln.js"></script>
+<script>
+const CAT={
+ animal:{m:['gato','cachorro','cavalo','coelho','papagaio'],t:['o {x} come ração em casa','o {x} dorme no sofá da sala','levei o {x} ao veterinário','o {x} brinca no quintal com as crianças','meu {x} de estimação é muito carinhoso']},
+ fruta:{m:['maçã','banana','manga','laranja','uva'],t:['comi uma {x} madura no café da manhã','a {x} é doce e cheia de vitaminas','comprei {x} fresca na feira','fiz um suco de {x} gelado','a {x} estava madura e doce']},
+ esporte:{m:['futebol','basquete','vôlei','tênis','handebol'],t:['o time treina {x} no ginásio','assisti ao jogo de {x} na televisão','o campeonato de {x} começa domingo','ela joga {x} com a bola nova','o atleta de {x} venceu a partida']},
+ dia:{m:['segunda','terça','quarta','quinta','sexta'],t:['a reunião será na {x} de manhã','toda {x} tenho aula à tarde','na próxima {x} começa a semana de provas','a entrega do trabalho é na {x}','o feriado caiu numa {x} da semana']},
+ pais:{m:['brasil','argentina','portugal','suécia','noruega'],t:['viajei para o {x} nas férias','a capital do {x} é uma cidade grande','o povo do {x} fala sua língua','o governo do {x} anunciou a eleição','o {x} é um país com muitas cidades']},
+ fin:{m:['banco','dinheiro','juros','empréstimo','conta'],t:['paguei os juros do empréstimo no banco','o banco abriu uma conta para guardar dinheiro','o gerente aprovou o empréstimo e a conta','depositei dinheiro na conta do banco','o banco cobra juros altos no empréstimo']},
+ praca:{m:['banco','praça','parque','jardim','árvore'],t:['sentei no banco da praça à sombra','o banco de madeira fica no jardim do parque','as crianças correm na praça perto do banco','a árvore do parque faz sombra no banco','passeei pelo jardim da praça e do parque']}};
+const ESP={gato:['o gato mia e caça o rato','o gato sobe no telhado'],cachorro:['o cachorro late para o carteiro','o cachorro abana o rabo e late'],cavalo:['o cavalo galopa no pasto','o cavalo puxa a carroça no pasto'],coelho:['o coelho come cenoura','o coelho pula na grama'],papagaio:['o papagaio fala e voa','o papagaio verde canta na gaiola'],
+ maçã:['a maçã vermelha caiu da árvore'],banana:['a banana amarela tem casca'],manga:['a manga do pé é suculenta'],laranja:['a laranja tem muito suco'],uva:['a uva vira vinho'],
+ futebol:['o gol de futebol foi de cabeça'],basquete:['a cesta de basquete valeu três pontos'],vôlei:['a rede de vôlei fica na quadra'],tênis:['a raquete de tênis quebrou'],handebol:['o goleiro de handebol defendeu'],
+ segunda:['segunda é o primeiro dia útil'],terça:['terça vem depois de segunda'],quarta:['quarta é o meio da semana'],quinta:['quinta vem antes de sexta'],sexta:['sexta é o último dia útil'],
+ brasil:['o brasil fala português'],argentina:['a argentina fala espanhol'],portugal:['portugal fala português na europa'],suécia:['a suécia fica no norte da europa'],noruega:['a noruega fica no norte da europa']};
+const SENT=[];const RS=rng(11);for(const k in CAT){const c=CAT[k];if(k==='fin'||k==='praca'){c.t.forEach(t=>{SENT.push(t);SENT.push(t);});}else c.m.forEach(x=>{const ts=c.t.filter(()=>RS()<0.75);(ts.length?ts:c.t.slice(0,2)).forEach(t=>SENT.push(t.replace('{x}',x)));(ESP[x]||[]).forEach(e=>{SENT.push(e);SENT.push(e);});});}
+$('#corp').textContent=SENT.join('\n');
+const DOCS=SENT.map(s=>tokenizar(s.toLowerCase()));const {V,idx}=vocabularioDe(DOCS);const n=V.length;
+const Co=[...Array(n)].map(()=>new Float64Array(n));DOCS.forEach(d=>d.forEach((w,i)=>{for(let j=Math.max(0,i-2);j<=Math.min(d.length-1,i+2);j++)if(j!==i)Co[idx[w]][idx[d[j]]]+=1;}));
+const rowS=Co.map(r=>r.reduce((a,b)=>a+b,0));const colS=V.map((_,j)=>Math.pow(Co.reduce((s,r)=>s+r[j],0),0.75));const totC=colS.reduce((a,b)=>a+b,0);const tot=rowS.reduce((a,b)=>a+b,0);
+const M=Co.map((r,i)=>Array.from(r,(v,j)=>{if(!v)return 0;const p=Math.log((v/tot)/((rowS[i]/tot)*(colS[j]/totC)));return Math.max(0,p);}));
+// SVD por iteração de subespaço em M·Mᵀ
+const k=10;const R=rng(3);let Q=[...Array(n)].map(()=>Array.from({length:k},()=>R()-0.5));
+const MM=matmul(M,transp(M));
+function orto(A){const B=A.map(r=>r.slice());for(let j=0;j<k;j++){for(let p=0;p<j;p++){let d=0;for(let i=0;i<n;i++)d+=B[i][j]*B[i][p];for(let i=0;i<n;i++)B[i][j]-=d*B[i][p];}let nn=0;for(let i=0;i<n;i++)nn+=B[i][j]**2;nn=Math.sqrt(nn)||1;for(let i=0;i<n;i++)B[i][j]/=nn;}return B;}
+for(let it=0;it<80;it++)Q=orto(matmul(MM,Q));
+const lam=[...Array(k)].map((_,j)=>{let s=0;const mq=MM.map(r=>r.reduce((a,v,i)=>a+v*Q[i][j],0));for(let i=0;i<n;i++)s+=mq[i]*Q[i][j];return Math.sqrt(Math.max(s,0));});
+const EMB=V.map((_,i)=>Q[i].map((v,j)=>v*Math.sqrt(lam[j])));const norm=v=>{const s=Math.hypot(...v)||1;return v.map(x=>x/s);};const EN=EMB.map(norm);
+const conteudo=V.filter(w=>!STOP.pt.has(w)&&w.length>2&&Object.values(CAT).some(c=>c.m.includes(w)));
+// PCA 2D dos vetores normalizados das palavras de conteúdo
+const P=conteudo.map(w=>EN[idx[w]]);const mean=P[0].map((_,j)=>P.reduce((s,r)=>s+r[j],0)/P.length);const Pc=P.map(r=>r.map((v,j)=>v-mean[j]));
+function pc(A,excl){let v=Array.from({length:k},(_,i)=>Math.sin(i+1+(excl?3:0)));for(let it=0;it<200;it++){const Av=A.map(r=>r.reduce((s,x,j)=>s+x*v[j],0));let w=v.map((_,j)=>A.reduce((s,r,i)=>s+r[j]*Av[i],0));if(excl){const d=w.reduce((s,x,j)=>s+x*excl[j],0);w=w.map((x,j)=>x-d*excl[j]);}const s=Math.hypot(...w)||1;v=w.map(x=>x/s);}return v;}
+const c1=pc(Pc,null),c2=pc(Pc,c1);const XY={};conteudo.forEach((w,i)=>XY[w]=[Pc[i].reduce((s,x,j)=>s+x*c1[j],0),Pc[i].reduce((s,x,j)=>s+x*c2[j],0)]);
+const corCat=w=>{for(const [kk,c] of Object.entries(CAT)){if(c.m.includes(w)&&w!=='banco')return {animal:'#123B6A',fruta:'#1E7B45',esporte:'#C2413B',dia:'#7C3AED',pais:'#0E7490',fin:'#A87A36',praca:'#65A30D'}[kk];}return '#111';};
+function proj(v){const vc=norm(v).map((x,j)=>x-mean[j]);return [vc.reduce((s,x,j)=>s+x*c1[j],0),vc.reduce((s,x,j)=>s+x*c2[j],0)];}
+function desenha(extra){const c=$('#mapa').getContext('2d'),W=860,H=520;c.fillStyle='#fff';c.fillRect(0,0,W,H);const xs=Object.values(XY).map(p=>p[0]),ys=Object.values(XY).map(p=>p[1]);const mnx=Math.min(...xs),mxx=Math.max(...xs),mny=Math.min(...ys),mxy=Math.max(...ys);
+ const px=p=>[40+(p[0]-mnx)/(mxx-mnx)*(W-140),30+(mxy-p[1])/(mxy-mny)*(H-60)];
+ const caixas=[];const sobrep=(a,b)=>!(a[2]<b[0]||a[0]>b[2]||a[3]<b[1]||a[1]>b[3]);
+ for(const w of conteudo){const [x,y]=px(XY[w]);c.fillStyle=corCat(w);c.beginPath();c.arc(x,y,5,0,7);c.fill();}
+ for(const w of conteudo){const [x,y]=px(XY[w]);c.font=(w==='banco'?'bold ':'')+'14px sans-serif';const tw=c.measureText(w).width;let pos=null;
+  const cand=[];for(let r=0;r<9;r++){const d=8+r*13;cand.push([d,4],[-d-tw,4],[-tw/2,-d],[-tw/2,d+12],[d,-d],[-d-tw,-d],[d,d+8],[-d-tw,d+8]);}
+  for(const [dx,dy] of cand){const b=[x+dx-2,y+dy-13,x+dx+tw+2,y+dy+3];if(b[0]<2||b[2]>W-2||b[1]<2||b[3]>H-2)continue;if(!caixas.some(k=>sobrep(k,b))){pos=[dx,dy,b];break;}}
+  if(!pos){const dx=x>W-130?-7-tw:7;pos=[dx,4,[x+dx,y-9,x+dx+tw,y+7]];}
+  caixas.push(pos[2]);const far=Math.hypot(pos[0]+tw/2,pos[1]-4)>24;
+  if(far){c.strokeStyle='rgba(107,114,128,.45)';c.lineWidth=1;c.beginPath();c.moveTo(x,y);c.lineTo(Math.min(Math.max(x,x+pos[0]),x+pos[0]+tw),y+pos[1]-4);c.stroke();}
+  c.fillStyle=corCat(w);c.fillText(w,x+pos[0],y+pos[1]);}
+ if(extra){const [x,y]=px(extra.p);c.strokeStyle=COR.gold;c.lineWidth=3;c.beginPath();c.arc(x,y,9,0,7);c.stroke();c.font='bold 14px sans-serif';const t='banco (nesta frase)',tw=c.measureText(t).width;let best=null;
+  for(let r=1;r<14&&!best;r++){const d=r*14;for(const [dx,dy] of [[-tw/2,-d],[d,-d],[-d-tw,-d],[-tw/2,d+12],[d,d+8],[-d-tw,d+8],[d,4],[-d-tw,4]]){const b=[x+dx-2,y+dy-13,x+dx+tw+2,y+dy+3];if(b[0]<2||b[2]>W-2||b[1]<2||b[3]>H-2)continue;if(!caixas.some(k=>sobrep(k,b))){best=[dx,dy];break;}}}
+  if(!best)best=[12,-12];c.strokeStyle=COR.gold;c.lineWidth=1.5;c.beginPath();c.moveTo(x,y-9);c.lineTo(x+best[0]+tw/2,y+best[1]+3);c.stroke();c.fillStyle=COR.gold;c.fillText(t,x+best[0],y+best[1]);}}
+function vizinhos(v,excl=[]){return V.filter(w=>!STOP.pt.has(w)&&w.length>2&&!excl.includes(w)).map(w=>[w,cosseno(v,EN[idx[w]])]).sort((a,b)=>b[1]-a[1]).slice(0,6);}
+conteudo.slice().sort().forEach(w=>{const o=document.createElement('option');o.textContent=w;$('#pal').appendChild(o);});$('#pal').value='gato';
+function viz(){const w=$('#pal').value;const v=vizinhos(EN[idx[w]],[w]);$('#viz').innerHTML=tabela(['Vizinho','Cosseno'],v.map(([x,s])=>[x,fmt(s,3)]));
+ const outra=w==='banana'?'maçã':'banana';$('#oh').innerHTML=tabela(['Representação','Dimensões','Cosseno entre "'+w+'" e "'+outra+'"','Cosseno entre "'+w+'" e "'+v[0][0]+'"'],[['one-hot',V.length,'0','0'],['embedding (PPMI + SVD)',k,fmt(cosseno(EN[idx[w]],EN[idx[outra]]),3),fmt(v[0][1],3)]]);}
+function contexto(){const t=tokenizar($('#ctx').value);const ctxw=t.filter(w=>w!=='banco'&&!STOP.pt.has(w)&&w in idx);const m=EN[0].map((_,j)=>ctxw.reduce((s,w)=>s+EN[idx[w]][j],0)/Math.max(ctxw.length,1));
+ const v=EN[idx['banco']].map((x,j)=>0.4*x+0.6*m[j]);const nb=vizinhos(norm(v),['banco']);desenha({p:proj(v)});
+ $('#ctxres').innerHTML=`<div class="linha"><div>${tabela(['Vizinhos de "banco" (estático)','Cosseno'],vizinhos(EN[idx['banco']],['banco']).map(([x,s])=>[x,fmt(s,3)]))}</div><div>${tabela(['Vizinhos de "banco" nesta frase','Cosseno'],nb.map(([x,s])=>[x,fmt(s,3)]))}</div></div>`;}
+function w2v(){const t=tokenizar($('#fw').value.toLowerCase());const J=+$('#jan').value;$('#vjan').textContent=J;const cb=[],sg=[];t.forEach((w,i)=>{const ctx=[];for(let j=i-J;j<=i+J;j++)if(j!==i&&j>=0&&j<t.length)ctx.push(t[j]);cb.push([ctx.map(x=>`<span class="tok">${esc(x)}</span>`).join(''),`<span class="tok ouro">${esc(w)}</span>`]);ctx.forEach(c=>sg.push([`<span class="tok ouro">${esc(w)}</span>`,`<span class="tok">${esc(c)}</span>`]));});
+ $('#cbow').innerHTML=tabela(['Contexto (entrada)','Alvo (saída)'],cb);$('#sg').innerHTML=tabela(['Alvo (entrada)','Contexto (saída)'],sg.slice(0,14))+(sg.length>14?`<p class="muted">… ${sg.length} pares no total</p>`:'');}
+$('#pal').onchange=viz;$('#ctx').onchange=contexto;$('#fw').oninput=w2v;$('#jan').oninput=w2v;viz();contexto();w2v();
+</script>
+</body></html>

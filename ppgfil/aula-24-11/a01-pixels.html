@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 1 · Os pixels enganam</title><link rel="stylesheet" href="estilo.css"></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · Aula de 24/11</span></header>
+<main>
+<p class="tag">Atividade 1 · LeCun, Bengio e Hinton (2015)</p>
+<h1>Os pixels enganam: o dilema seletividade e invariância</h1>
+
+<section class="caixa azul"><h2>Contexto</h2>
+<p>Para uma máquina, uma imagem é só uma tabela de números (pixels). O artigo da <i>Nature</i> observa que duas fotos do mesmo cão em poses diferentes podem ser muito diferentes pixel a pixel, enquanto um cão e um lobo na mesma pose podem ser quase idênticos. Um bom sistema precisa ser <b>seletivo</b> ao que importa e <b>invariante</b> ao que não importa (LECUN; BENGIO; HINTON, 2015, p. 437-438).</p>
+<p>Aqui fazemos o mesmo teste com dígitos manuscritos reais.</p>
+</section>
+
+<section class="painel">
+<h2>1. Aposte antes de calcular</h2>
+<div class="linha centro">
+ <div><b>A</b>: um "3"<canvas id="cA" class="grade" width="168" height="168"></canvas></div>
+ <div><b>B</b>: o mesmo "3", deslocado<canvas id="cB" class="grade" width="168" height="168"></canvas></div>
+ <div><b>C</b>: outro dígito<canvas id="cC" class="grade" width="168" height="168"></canvas></div>
+</div>
+<p class="centro"><b>Segundo os pixels, qual imagem está mais perto de A?</b><br>
+<button onclick="aposta('B')">B (o mesmo 3)</button><button onclick="aposta('C')">C (o outro dígito)</button></p>
+<div id="resp" class="revela oculto"></div>
+</section>
+
+<section class="painel">
+<h2>2. Explore</h2>
+<div class="linha">
+ <div>
+  <div class="ctl"><label>Deslocamento horizontal de B <span class="val" id="vdx"></span></label><input type="range" id="dx" min="-7" max="7" value="4"></div>
+  <div class="ctl"><label>Deslocamento vertical de B <span class="val" id="vdy"></span></label><input type="range" id="dy" min="-7" max="7" value="0"></div>
+  <div class="ctl"><label>Dígito em C</label> <select id="selC"></select> <button class="sec" onclick="outroC()">outro exemplo</button></div>
+  <div class="ctl"><label>Exemplo de "3" em A</label> <button class="sec" onclick="outroA()">sortear outro 3</button></div>
+ </div>
+ <div>
+  <p>Distância em pixels (euclidiana):</p>
+  <p>d(A, B) = <span class="grande num" id="dab"></span></p>
+  <div class="barra"><div id="bab"></div></div>
+  <p>d(A, C) = <span class="grande num" id="dac"></span></p>
+  <div class="barra"><div id="bac" style="background:var(--navy)"></div></div>
+  <p id="vered" class="muted"></p>
+ </div>
+</div>
+<h3>Quem é o "vizinho mais próximo" de B entre 1.797 dígitos?</h3>
+<p class="muted">Um classificador que só compara pixels (1-vizinho mais próximo) procura, no conjunto de dados, a imagem mais parecida com B.</p>
+<div class="linha"><div class="centro"><canvas id="cV" class="grade" width="120" height="120"></canvas></div><div><p>Vizinho mais próximo de B é um: <span class="grande" id="vrot"></span></p><p id="vmsg"></p></div></div>
+</section>
+
+<section class="caixa creme"><h2>Para discutir</h2>
+<ol>
+<li>O que faz duas inscrições serem "o mesmo" símbolo: semelhança física ou papel que desempenham? Que tipo de semelhança a distância em pixels captura?</li>
+<li>Os autores dizem que a solução não é escrever à mão as invariâncias, mas <b>aprendê-las</b>. Isso dispensa todo conhecimento prévio? (Guarde esta pergunta para a segunda parte da aula.)</li>
+</ol></section>
+
+<div class="ref"><p><b>Referência:</b> LECUN, Y.; BENGIO, Y.; HINTON, G. Deep learning. <i>Nature</i>, London, v. 521, n. 7553, p. 436-444, 2015.</p>
+<p class="muted">Dados: dígitos 8×8 do conjunto UCI Optical Recognition of Handwritten Digits (distribuído com o scikit-learn), ampliados para 28×28.</p></div>
+</main>
+<script src="digitos.js"></script><script src="comum.js"></script>
+<script>
+const N=28; const tres=indicesDe(3); let iA=tres[1]; let dC=8, iC=indicesDe(8)[2];
+let A,B,C;
+const sel=$('#selC'); for(let d=0;d<10;d++){if(d===3)continue;const o=document.createElement('option');o.value=d;o.textContent=d;if(d===8)o.selected=true;sel.appendChild(o);}
+sel.onchange=()=>{dC=+sel.value;iC=indicesDe(dC)[0];atualiza();};
+function outroC(){const l=indicesDe(dC);iC=l[Math.floor(Math.random()*l.length)];atualiza();}
+function outroA(){iA=tres[Math.floor(Math.random()*tres.length)];atualiza();}
+function atualiza(){
+  const dx=+$('#dx').value,dy=+$('#dy').value; $('#vdx').textContent=dx+' px'; $('#vdy').textContent=dy+' px';
+  A=ampliar(digito8(iA),N,4); B=deslocar(A,N,dx,dy); C=ampliar(digito8(iC),N,4);
+  pintar($('#cA'),A,N); pintar($('#cB'),B,N); pintar($('#cC'),C,N);
+  const dab=Math.sqrt(dist2(A,B)),dac=Math.sqrt(dist2(A,C)); const m=Math.max(dab,dac,1);
+  $('#dab').textContent=fmt(dab,1); $('#dac').textContent=fmt(dac,1);
+  $('#bab').style.width=(100*dab/m)+'%'; $('#bac').style.width=(100*dac/m)+'%';
+  $('#vered').innerHTML= dab>dac? '<span class="erro">Para os pixels, o "3" deslocado é mais diferente de A do que um dígito de outra classe.</span>' : '<span class="ok">Com este deslocamento, B ainda está mais perto de A.</span>';
+  // vizinho mais próximo de B (comparação em 8x8)
+  const v=vizinhoMaisProximo(reduzir8(B,N,4));
+  pintar($('#cV'),ampliar(digito8(v.i),N,4),N); $('#vrot').textContent='"'+v.rot+'"';
+  $('#vmsg').innerHTML= v.rot===3? '<span class="ok">Acertou: ainda parece um 3.</span>':'<span class="erro">Errou: para quem só olha pixels, o 3 deslocado virou um '+v.rot+'.</span>';
+}
+function aposta(x){const dab=Math.sqrt(dist2(A,B)),dac=Math.sqrt(dist2(A,C));const r=$('#resp');r.classList.remove('oculto');
+  const certo=dab<dac?'B':'C';
+  r.innerHTML=`d(A,B) = <b>${fmt(dab,1)}</b> e d(A,C) = <b>${fmt(dac,1)}</b>. Pelos pixels, a imagem mais próxima de A é <b>${certo}</b>. `+(x===certo?'<span class="ok">Você acertou.</span>':'<span class="erro">Surpresa?</span>')+' Nossa percepção é invariante ao deslocamento; a distância em pixels, não.';}
+$('#dx').oninput=atualiza; $('#dy').oninput=atualiza; atualiza();
+</script>
+</body></html>

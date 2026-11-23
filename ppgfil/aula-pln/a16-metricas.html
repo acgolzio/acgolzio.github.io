@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 16 · Métricas de avaliação</title><link rel="stylesheet" href="estilo.css"></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · PLN e Transformers</span></header>
+<main>
+<p class="tag">Atividade 16 · Avaliação em PLN</p>
+<h1>Medir a qualidade: matriz de confusão, F1, BLEU, ROUGE e semelhança</h1>
+<section class="caixa azul"><h2>Contexto</h2>
+<p>Métricas dizem quão perto a saída do modelo está da resposta esperada. Em classificação: acurácia, precisão, revocação e F1, a partir da matriz de confusão. Em geração: BLEU (precisão de n-gramas, tradução), ROUGE (revocação de n-gramas, resumos), METEOR, BERTScore e semelhança de cosseno entre embeddings. E a avaliação humana continua indispensável (PAPINENI et al., 2002; LIN, 2004).</p>
+</section>
+<section class="painel"><h2>1. Classificação</h2>
+<div class="linha"><div><table style="width:auto"><tr><th>Real \ Previsto</th><th>Positivo</th><th>Negativo</th></tr><tr><th>Positivo</th><td><input type="number" id="tp" value="40" style="width:5rem"> VP</td><td><input type="number" id="fn" value="10" style="width:5rem"> FN</td></tr><tr><th>Negativo</th><td><input type="number" id="fp" value="5" style="width:5rem"> FP</td><td><input type="number" id="tn" value="45" style="width:5rem"> VN</td></tr></table>
+<p><button class="sec" onclick="desb()">exemplo desbalanceado (paradoxo da acurácia)</button></p></div><div id="cls"></div></div>
+</section>
+<section class="painel"><h2>2. Geração de texto</h2>
+<label>Referência (resposta humana)</label><input type="text" id="ref" style="width:100%" value="o gato está sentado no tapete">
+<label>Candidata (saída do modelo)</label><input type="text" id="cand" style="width:100%" value="o gato sentou no tapete">
+<p><button class="sec" onclick="ex('o gato está sentado no tapete','o tapete está sentado no gato')">mesmas palavras, sentido trocado</button><button class="sec" onclick="ex('o filme foi excelente','a película foi ótima')">sinônimos</button><button class="sec" onclick="ex('o gato está sentado no tapete','o gato está sentado no tapete')">idênticas</button></p>
+<div class="ctl"><label>BLEU até n = <span class="val" id="vN"></span></label><input type="range" id="N" min="1" max="4" value="2"></div>
+<div id="gen"></div>
+</section>
+<section class="painel"><h2>3. Avaliação humana</h2><p class="muted">Dê notas de 1 (ruim) a 5 (excelente) à candidata acima.</p>
+<div class="linha"><div class="ctl"><label>Fluência (gramática, naturalidade) <span class="val" id="vh1"></span></label><input type="range" id="h1" min="1" max="5" value="4"></div><div class="ctl"><label>Coerência (fluxo lógico) <span class="val" id="vh2"></span></label><input type="range" id="h2" min="1" max="5" value="4"></div><div class="ctl"><label>Relevância (para a entrada) <span class="val" id="vh3"></span></label><input type="range" id="h3" min="1" max="5" value="4"></div><div class="ctl"><label>Factualidade (informação correta) <span class="val" id="vh4"></span></label><input type="range" id="h4" min="1" max="5" value="4"></div></div><div id="hum"></div>
+</section>
+<section class="caixa creme"><h2>Para discutir</h2>
+<ol><li>"O tapete está sentado no gato" tem ROUGE-1 perfeito em relação a "o gato está sentado no tapete". O que as métricas de sobreposição medem, e o que é o significado de uma frase?</li>
+<li>"Quando uma medida se torna uma meta, ela deixa de ser uma boa medida" (lei de Goodhart, na formulação de Strathern, 1997). Otimizar BLEU ou ROUGE melhora os textos ou só os números?</li></ol></section>
+<div class="ref"><p>YADAV, R. <i>NLP</i>: complete developer study notes. [S. l.: s. n.], [202-]. Seção 15.</p>
+<p>PAPINENI, K. et al. BLEU: a method for automatic evaluation of machine translation. In: ANNUAL MEETING OF THE ACL, 40., 2002, Philadelphia. <i>Proceedings</i> [...]. Stroudsburg: ACL, 2002. p. 311-318.</p>
+<p>LIN, C.-Y. ROUGE: a package for automatic evaluation of summaries. In: TEXT SUMMARIZATION BRANCHES OUT, 2004, Barcelona. <i>Proceedings</i> [...]. Stroudsburg: ACL, 2004. p. 74-81.</p>
+<p>STRATHERN, M. 'Improving ratings': audit in the British University system. <i>European Review</i>, v. 5, n. 3, p. 305-321, 1997.</p></div>
+</main>
+<script src="pln.js"></script>
+<script>
+function desb(){$('#tp').value=1;$('#fn').value=9;$('#fp').value=1;$('#tn').value=989;cls();}
+function cls(){const g=id=>+$('#'+id).value;const tp=g('tp'),fn=g('fn'),fp=g('fp'),tn=g('tn');const acc=(tp+tn)/(tp+tn+fp+fn),p=tp/(tp+fp),r=tp/(tp+fn),f1=2*p*r/(p+r);
+ $('#cls').innerHTML=tabela(['Métrica','Fórmula','Valor'],[['Acurácia','(VP + VN)/(VP + VN + FP + FN)',`<b>${fmt(100*acc,1)}%</b>`],['Precisão','VP/(VP + FP)',`<b>${fmt(100*p,1)}%</b>`],['Revocação (recall)','VP/(VP + FN)',`<b>${fmt(100*r,1)}%</b>`],['F1','2·P·R/(P + R)',`<b>${fmt(100*(f1||0),1)}%</b>`]])+(acc>0.95&&r<0.5?'<p class="erro">Acurácia alta, revocação baixa: com classes desbalanceadas, um modelo que quase sempre diz "negativo" parece ótimo pela acurácia. Por isso se usa F1.</p>':'');}
+function ng(t,n){const o=[];for(let i=0;i+n<=t.length;i++)o.push(t.slice(i,i+n).join(' '));return o;}
+function cnt(a){const c={};a.forEach(x=>c[x]=(c[x]||0)+1);return c;}
+function lcs(a,b){const D=[...Array(a.length+1)].map(()=>Array(b.length+1).fill(0));for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)D[i][j]=a[i-1]===b[j-1]?D[i-1][j-1]+1:Math.max(D[i-1][j],D[i][j-1]);return D[a.length][b.length];}
+function ex(r,c){$('#ref').value=r;$('#cand').value=c;gen();}
+function gen(){const R=tokenizar($('#ref').value.toLowerCase()),C=tokenizar($('#cand').value.toLowerCase());const N=+$('#N').value;$('#vN').textContent=N;if(!R.length||!C.length)return;
+ const ps=[];const lin=[];for(let n=1;n<=N;n++){const cn=cnt(ng(C,n)),rn=cnt(ng(R,n));let m=0,t=0;for(const [g,v] of Object.entries(cn)){m+=Math.min(v,rn[g]||0);t+=v;}ps.push(t?m/t:0);lin.push([n+'-gramas',`${m}/${t}`,fmt(t?m/t:0,3)]);}
+ const bp=C.length>R.length?1:Math.exp(1-R.length/C.length);const bleu=ps.some(p=>p===0)?0:bp*Math.exp(ps.reduce((s,p)=>s+Math.log(p)/N,0));
+ const rouge=n=>{const cn=cnt(ng(C,n)),rn=cnt(ng(R,n));let m=0;for(const [g,v] of Object.entries(rn))m+=Math.min(v,cn[g]||0);const rr=m/Math.max(1,ng(R,n).length),pp=m/Math.max(1,ng(C,n).length);return [rr,pp,rr+pp?2*rr*pp/(rr+pp):0];};
+ const L=lcs(R,C);const rl=[L/R.length,L/C.length];rl.push(rl[0]+rl[1]?2*rl[0]*rl[1]/(rl[0]+rl[1]):0);
+ const {V,idx}=vocabularioDe([R,C]);const vr=V.map(w=>R.filter(x=>x===w).length),vc=V.map(w=>C.filter(x=>x===w).length);
+ $('#gen').innerHTML=`<div class="linha"><div><h3>BLEU</h3>${tabela(['Ordem','Casamentos (com corte)','Precisão p<sub>n</sub>'],lin)}<p>Penalidade de brevidade BP = ${C.length>R.length?'1 (candidata maior que a referência)':`e^(1 − ${R.length}/${C.length}) = ${fmt(bp,3)}`}</p><p class="grande">BLEU = ${fmt(bleu,3)}</p><p class="muted">BLEU = BP · exp(Σ w<sub>n</sub> log p<sub>n</sub>), com w<sub>n</sub> = 1/N. Se algum p<sub>n</sub> = 0, BLEU = 0 (por isso, em frases curtas, usa-se suavização ou N menor).</p></div>
+ <div><h3>ROUGE</h3>${tabela(['Variante','Revocação','Precisão','F1'],[['ROUGE-1 (unigramas)',...rouge(1).map(x=>fmt(x,3))],['ROUGE-2 (bigramas)',...rouge(2).map(x=>fmt(x,3))],['ROUGE-L (maior subsequência comum)',...rl.map(x=>fmt(x,3))]])}<p class="muted">ROUGE-L usa a maior subsequência comum (LCS = ${L} palavras) e por isso é sensível à ordem.</p>
+ <h3>Semelhança de cosseno (bolsas de palavras)</h3><p class="grande">${fmt(cosseno(vr,vc),3)}</p><p class="muted">Com embeddings neurais (como no BERTScore), sinônimos também contariam como parecidos; com bolsas de palavras, não.</p></div></div>`;hum();}
+function hum(){const v=[1,2,3,4].map(i=>+$('#h'+i).value);v.forEach((x,i)=>$('#vh'+(i+1)).textContent=x);$('#hum').innerHTML=`<p>Média humana: <b>${fmt(v.reduce((a,b)=>a+b,0)/4,2)}</b> de 5. Compare sua avaliação com as métricas automáticas acima: elas concordam?</p>`;}
+['#tp','#fn','#fp','#tn'].forEach(i=>$(i).oninput=cls);['#ref','#cand','#N'].forEach(i=>$(i).oninput=gen);[1,2,3,4].forEach(i=>$('#h'+i).oninput=hum);cls();gen();
+</script>
+</body></html>

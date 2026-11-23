@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 9 · Embaralhe os pixels</title><link rel="stylesheet" href="estilo.css"></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · Aula de 24/11</span></header>
+<main>
+<p class="tag">Atividade 9 · LeCun et al. (1998), seções II e III-D</p>
+<h1>Embaralhe os pixels: a forma do espaço é conhecimento?</h1>
+<section class="caixa azul"><h2>Contexto</h2>
+<p>Uma rede totalmente conectada <b>ignora a topologia</b> da entrada: os pixels poderiam ser apresentados em qualquer ordem fixa sem mudar o resultado do treinamento (LECUN et al., 1998, p. 2283). Sobre o SVM, os autores notam que ele "se sairia igualmente bem se os pixels fossem permutados" e perdessem a estrutura de imagem (p. 2294). As redes convolucionais, ao contrário, exploram a vizinhança espacial: pixels próximos são correlacionados.</p>
+</section>
+<section class="painel">
+<h2>1. Que dígito é este?</h2>
+<p class="muted">Aplicamos a <b>mesma</b> permutação fixa dos 64 pixels a todas as imagens. Tente adivinhar os dígitos embaralhados.</p>
+<div id="jogo" class="linha centro"></div>
+<p class="centro"><button onclick="revela()">revelar</button><button class="sec" onclick="novoJogo()">novos exemplos</button></p>
+</section>
+<section class="painel">
+<h2>2. E a máquina?</h2>
+<p>Treino: 1.497 dígitos. Teste: 300 dígitos, cada um <b>deslocado aleatoriamente em até 1 pixel</b> (uma variação "acidental" típica). Comparamos dois classificadores de vizinho mais próximo:</p>
+<ul><li><b>Pixels crus</b>: compara os 64 pixels um a um. Não sabe o que é vizinhança (como uma rede totalmente conectada ou um SVM).</li>
+<li><b>Tolerante a deslocamentos</b>: compara também com versões de cada exemplo de treino deslocadas em 1 pixel. Ele "sabe" o que é um pixel vizinho (é a ideia, simplificada, do classificador de distância tangente do artigo, p. 2291).</li></ul>
+<button class="ouro" onclick="roda()">rodar os classificadores</button>
+<div id="res" style="margin-top:.6rem"></div>
+</section>
+<section class="caixa creme"><h2>Para discutir</h2>
+<ol><li>Para o classificador de pixels crus, a imagem embaralhada contém <b>exatamente a mesma informação</b>. Para nós, não. O que nós (e a rede convolucional) sabemos que ele não sabe?</li>
+<li>Kant chamou o espaço de forma <i>a priori</i> da intuição: não aprendido da experiência, mas condição para ela. A arquitetura convolucional embute uma "forma do espaço" antes de qualquer dado. A analogia é boa? Onde ela falha?</li>
+<li>LeCun et al. (1998, p. 2279) afirmam que nenhuma técnica de aprendizado tem sucesso sem um mínimo de conhecimento prévio sobre a tarefa. Como conciliar isso com o elogio de "aprender em vez de projetar"?</li></ol></section>
+<div class="ref"><p>LECUN, Y. et al. Gradient-based learning applied to document recognition. <i>Proceedings of the IEEE</i>, v. 86, n. 11, p. 2278-2324, 1998.</p>
+<p>KANT, I. <i>Crítica da razão pura</i>. Tradução de Manuela Pinto dos Santos e Alexandre Fradique Morujão. 5. ed. Lisboa: Fundação Calouste Gulbenkian, 2001.</p></div>
+</main>
+<script src="digitos.js"></script><script src="comum.js"></script>
+<script>
+let sd=17;const rnd=()=>{sd=(sd*16807)%2147483647;return sd/2147483647;};
+const perm=[...Array(64).keys()];for(let i=63;i>0;i--){const j=Math.floor(rnd()*(i+1));[perm[i],perm[j]]=[perm[j],perm[i]];}
+const emb=v=>{const o=new Float32Array(64);for(let i=0;i<64;i++)o[i]=v[perm[i]];return o;};
+let atuais=[];
+function novoJogo(){atuais=[];const n=DIGITOS_LAB.length;for(let k=0;k<6;k++)atuais.push(1497+Math.floor(Math.random()*300));
+ $('#jogo').innerHTML=atuais.map((i,k)=>`<div style="flex:0 0 120px"><canvas id="j${k}" class="grade" width="96" height="96"></canvas><input type="text" maxlength="1" style="width:3rem;text-align:center" placeholder="?"><div id="jr${k}"></div></div>`).join('');
+ atuais.forEach((i,k)=>pintar($('#j'+k),emb(digito8(i)),8));}
+function revela(){atuais.forEach((i,k)=>{const cv=document.createElement('canvas');cv.width=96;cv.height=96;cv.className='grade';pintar(cv,digito8(i),8);const d=$('#jr'+k);d.innerHTML='era um <b>'+rotulo(i)+'</b>';d.appendChild(cv);});}
+function acc(featTr,featTe,labTr,labTe){let ok=0;for(let t=0;t<featTe.length;t++){let b=1e9,bi=0;for(let i=0;i<featTr.length;i++){const s=dist2(featTe[t],featTr[i]);if(s<b){b=s;bi=i;}}if(labTr[bi]===labTe[t])ok++;}return ok/featTe.length;}
+function desl(v,dx,dy){const o=new Float32Array(64);for(let y=0;y<8;y++)for(let x=0;x<8;x++){const sx=x-dx,sy=y-dy;if(sx>=0&&sx<8&&sy>=0&&sy<8)o[y*8+x]=v[sy*8+sx];}return o;}
+function accTol(tr,te,ltr,lte){const S=[];for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)S.push(tr.map(v=>desl(v,dx,dy)));let ok=0;
+ for(let t=0;t<te.length;t++){let b=1e9,bl=-1;for(const T of S)for(let i=0;i<T.length;i++){const s=dist2(te[t],T[i]);if(s<b){b=s;bl=ltr[i];}}if(bl===lte[t])ok++;}return ok/te.length;}
+function roda(){$('#res').innerHTML='calculando... (alguns segundos)';setTimeout(()=>{const D=todos8(),L=[...DIGITOS_LAB].map(Number);const tr=D.slice(0,1497),ltr=L.slice(0,1497),lte=L.slice(1497,1797);
+ let s2=123;const r2=()=>{s2=(s2*16807)%2147483647;return s2/2147483647;};const te=D.slice(1497,1797).map(v=>desl(v,Math.floor(r2()*3)-1,Math.floor(r2()*3)-1));
+ const r1=acc(tr,te,ltr,lte),rp=acc(tr.map(emb),te.map(emb),ltr,lte),t1=accTol(tr,te,ltr,lte),tp=accTol(tr.map(emb),te.map(emb),ltr,lte);
+ $('#res').innerHTML=`<table><tr><th>Classificador</th><th>Imagens originais</th><th>Imagens embaralhadas</th></tr>
+ <tr><td>Pixels crus</td><td><b>${fmt(100*r1,1)}%</b></td><td><b>${fmt(100*rp,1)}%</b></td></tr>
+ <tr><td>Tolerante a deslocamentos</td><td><b class="ok">${fmt(100*t1,1)}%</b></td><td><b class="erro">${fmt(100*tp,1)}%</b></td></tr></table>
+ <p class="revela">O classificador de pixels crus tem <b>exatamente</b> a mesma taxa de acerto antes e depois de embaralhar: a distância entre vetores não muda quando se permuta a ordem das coordenadas. Mas ele sofre com os pequenos deslocamentos. O classificador que usa a noção de vizinhança fica muito mais robusto, <b>desde que a vizinhança seja real</b>: nas imagens embaralhadas, "deslocar um pixel" leva a tinta para posições que nada têm a ver com as vizinhas, e a vantagem desaparece. A robustez vem de uma suposição sobre a estrutura do espaço.</p>`;},30);}
+novoJogo();
+</script>
+</body></html>

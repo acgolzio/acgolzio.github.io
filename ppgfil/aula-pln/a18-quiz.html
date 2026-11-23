@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 18 · Quiz final</title><link rel="stylesheet" href="estilo.css">
+<style>.q{background:#fff;border:1px solid var(--borda);border-radius:12px;padding:1rem;margin:1rem 0}.q button{display:block;width:100%;text-align:left;background:#fff;color:var(--txt);border:1.5px solid var(--borda);margin:.35rem 0;font-weight:500}.q button.certa{border-color:var(--verde2);background:var(--verde)}.q button.errada{border-color:var(--verm);background:#FBEAEA}.q .exp{display:none}.q.feita .exp{display:block}</style></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · PLN e Transformers</span></header>
+<main>
+<p class="tag">Atividade 18 · Revisão</p>
+<h1>Quiz final: do pré-processamento ao RAG</h1>
+<p>20 perguntas. As de número 16 a 20 são as questões de múltipla escolha da seção 19.8 das notas de PLN.</p>
+<div class="caixa verde"><b>Placar:</b> <span id="placar">0 de 0</span></div>
+<div id="qs"></div>
+<div class="ref"><p>YADAV, R. <i>NLP</i>: complete developer study notes. [S. l.: s. n.], [202-]. YADAV, R. <i>Transformer architecture</i>: complete developer study notes. [S. l.: s. n.], [202-].</p></div>
+</main>
+<script src="pln.js"></script>
+<script>
+const Q=[
+['Qual etapa reduz "running" a "run" e "amazing" a "amaz", sem garantir uma palavra válida?',['Lematização','Radicalização (stemming)','Tokenização','Remoção de stopwords'],1,'A radicalização corta sufixos por regras (ex.: algoritmo de Porter); a lematização usa vocabulário e classe gramatical e devolve uma palavra válida.'],
+['No TF-IDF, uma palavra que aparece em todos os documentos recebe…',['peso máximo','IDF = log(N/N) = 0, logo peso zero','peso igual à frequência','peso negativo'],1,'IDF = log(N/DF). Se DF = N, o logaritmo de 1 é zero: a palavra não discrimina documentos.'],
+['O que distingue embeddings contextuais (BERT) de estáticos (Word2Vec)?',['São menores','Dão vetores diferentes para a mesma palavra conforme a frase','Não precisam de treino','Usam one-hot'],1,'"banco" em "fui ao banco depositar dinheiro" e em "sentei no banco da praça" recebe vetores diferentes.'],
+['A hipótese de Markov num modelo de trigramas supõe que…',['a próxima palavra depende de toda a história','a próxima palavra depende só das 2 palavras anteriores','as palavras são independentes','a ordem não importa'],1,'N-grama: P(w_t | w_{t−N+1}, …, w_{t−1}); para trigramas, N − 1 = 2.'],
+['Perplexidade menor significa…',['modelo pior','modelo que prevê melhor o conjunto de teste','texto mais longo','mais parâmetros'],1,'PP(W) = P(w_1, …, w_N)^(−1/N), o inverso da média geométrica das probabilidades.'],
+['Por que a LSTM lida melhor com dependências longas que a RNN simples?',['Tem menos parâmetros','Usa uma célula de memória controlada por portas, mitigando o gradiente que some','Não usa retropropagação','Processa em paralelo'],1,'Portas de esquecimento, entrada e saída controlam o que a célula guarda.'],
+['Na atenção, por que dividir QKᵀ por √d_k?',['Para somar 1','Para evitar valores grandes que deixam a softmax saturada e instabilizam o treino','Para reduzir o vocabulário','Para mascarar o futuro'],1,'Com d_k grande, os produtos escalares crescem; a escala mantém a softmax numa região com gradientes úteis.'],
+['No BERT-base, com d_model = 768 e 12 cabeças, d_k vale…',['12','64','768','3072'],1,'d_k = d_model/h = 768/12 = 64; concatenando as 12 cabeças volta-se a 768.'],
+['Por que o Transformer precisa de codificação posicional?',['Para reduzir custo','Porque a autoatenção não vê a ordem dos tokens','Para gerar embeddings','Para o cache KV'],1,'Sem recorrência nem convolução, a atenção trata a entrada como um conjunto; a posição é somada aos embeddings.'],
+['O que faz a máscara causal no decodificador?',['Esconde palavras aleatórias','Impede cada posição de atender às posições futuras','Remove stopwords','Normaliza a camada'],1,'Na geração, o modelo só pode usar o que já foi gerado.'],
+['Qual objetivo de pré-treino usa contexto dos dois lados para prever palavras escondidas?',['CLM (GPT)','MLM (BERT)','Seq2seq com remoção de ruído (T5)','RLHF'],1,'"O [MASK] é azul" → "céu". O GPT prevê a próxima palavra só com o contexto à esquerda.'],
+['A amostragem top-p (núcleo) escolhe entre…',['os p tokens mais prováveis','o menor conjunto de tokens cuja probabilidade acumulada é ≥ p','tokens com probabilidade exatamente p','todos os tokens'],1,'O tamanho do conjunto varia conforme a distribuição; top-k usa sempre k tokens.'],
+['O cache KV acelera a geração porque…',['diminui o vocabulário','guarda K e V dos tokens anteriores, calculando só os do token novo','quantiza os pesos','usa duas GPUs'],1,'O custo da atenção por passo cai de O(n²) para O(n), em troca de memória O(n·d).'],
+['Na LoRA, W\' = W + B·A. O que é treinado?',['W inteira','Só B e A, de posto r pequeno','Só os embeddings','Nada'],1,'W fica congelada; treina-se r·(d + k) parâmetros em vez de d·k.'],
+['Num ViT com imagens 224 × 224 e retalhos 16 × 16, quantos retalhos há?',['16','196','768','224'],1,'(224/16)² = 14² = 196; cada retalho achatado tem 16·16·3 = 768 números.'],
+['Qual modelo é bidirecional e usado para compreender texto? (MCQ 1 das notas)',['GPT','BERT','T5','LLaMA'],1,'BERT é só codificador e vê o contexto dos dois lados.'],
+['Que métrica é comumente usada para resumos? (MCQ 2)',['Acurácia','BLEU','F1','ROC-AUC'],1,'Gabarito das notas: BLEU. Observação: na prática, ROUGE é a métrica mais usada para resumos; BLEU é típica de tradução. ROUGE não estava entre as opções.'],
+['Que ferramenta é usada para construir aplicações de RAG? (MCQ 3)',['OpenCV','LangChain','TensorFlow','PyTorch'],1,'LangChain (e LlamaIndex) oferecem abstrações para recuperação, prompts e agentes.'],
+['O que o FAISS oferece? (MCQ 4)',['Pré-processamento de texto','Busca por similaridade vetorial','Treino de modelos','Geração de texto'],1,'FAISS é uma biblioteca de busca de vizinhos mais próximos em vetores densos.'],
+['Que técnica reduz o tamanho do modelo? (MCQ 5)',['Ajuste fino','Quantização','Prompting','RAG'],1,'Quantização: de FP16 para INT8 ou INT4, a memória dos pesos cai pela metade ou a um quarto.']];
+let feitas=0,certas=0;
+$('#qs').innerHTML=Q.map((q,k)=>`<div class="q" id="q${k}"><b>${k+1}. ${esc(q[0])}</b>${q[1].map((o,j)=>`<button onclick="resp(${k},${j})">${String.fromCharCode(97+j)}) ${esc(o)}</button>`).join('')}<p class="exp revela"></p></div>`).join('');
+function resp(k,j){const d=$('#q'+k);if(d.classList.contains('feita'))return;d.classList.add('feita');const bs=d.querySelectorAll('button');bs[Q[k][2]].classList.add('certa');if(j!==Q[k][2])bs[j].classList.add('errada');else certas++;feitas++;
+ d.querySelector('.exp').innerHTML=(j===Q[k][2]?'<span class="ok">Certo!</span> ':'<span class="erro">Não exatamente.</span> ')+esc(Q[k][3]);$('#placar').textContent=certas+' de '+feitas+(feitas===Q.length?' · fim!':'');}
+</script>
+</body></html>

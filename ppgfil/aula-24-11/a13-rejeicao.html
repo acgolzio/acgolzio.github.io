@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 13 · Saber quando não responder</title><link rel="stylesheet" href="estilo.css"></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · Aula de 24/11</span></header>
+<main>
+<p class="tag">Atividade 13 · LeCun et al. (1998), seção X</p>
+<h1>Saber quando não responder: o limiar de rejeição</h1>
+<section class="caixa azul"><h2>Contexto</h2>
+<p>Para um banco, o leitor automático de cheques só é economicamente viável se ler pelo menos 50% dos cheques com menos de 1% de erro; os outros são <b>rejeitados</b> e vão para operadores humanos ("50% corretos / 49% rejeitados / 1% erro"). O sistema do artigo atingiu 82% corretos, 1% de erros e 17% de rejeições em 646 cheques comerciais, contra 68% / 1% / 31% do sistema anterior. Rejeitar exige uma medida de <b>confiança</b> na resposta (LECUN et al., 1998, p. 2315-2317).</p>
+<p class="muted">Abaixo, 2.000 cheques <b>simulados</b>: cada um tem uma confiança entre 0 e 1. Cheques lidos corretamente tendem a ter confiança alta, mas não sempre.</p>
+</section>
+<section class="painel">
+<canvas id="cH" width="860" height="230"></canvas>
+<div class="ctl"><label>Limiar de confiança (abaixo dele, rejeita) <span class="val" id="vt"></span></label><input type="range" id="t" min="0" max="1" step="0.005" value="0.3"></div>
+<div class="linha centro">
+ <div><span class="muted">lidos corretamente</span><br><span class="grande ok" id="pc"></span></div>
+ <div><span class="muted">erros</span><br><span class="grande erro" id="pe"></span></div>
+ <div><span class="muted">rejeitados</span><br><span class="grande" id="pr" style="color:#6B7280"></span></div>
+</div>
+<div id="meta" class="revela"></div>
+<h3>Quanto custa cada decisão?</h3>
+<div class="linha"><div><div class="ctl"><label>Custo de um cheque rejeitado (operador humano) <span class="val" id="vcr"></span></label><input type="range" id="cr" min="0.1" max="5" step="0.1" value="1"></div></div>
+<div><div class="ctl"><label>Custo de um erro (valor errado lançado) <span class="val" id="vce"></span></label><input type="range" id="ce" min="1" max="200" step="1" value="50"></div></div></div>
+<p>Custo total com o limiar atual: <b id="ct"></b>. Limiar de menor custo: <b id="tb"></b> <button class="sec" onclick="vaiOtimo()">usar</button></p>
+</section>
+<section class="caixa creme"><h2>Para discutir</h2>
+<ol><li>Um sistema que sabe quando <b>não</b> responder exibe uma forma de humildade epistêmica? Ou a "confiança" é só mais um número, sem relação com saber?</li>
+<li>O limiar é escolhido por critérios econômicos (custo do operador contra custo do erro). Quem decide quanto vale um erro? A quem cabe a responsabilidade pelos 1% restantes?</li>
+<li>O que acontece com o trabalho humano quando a máquina passa a ler 82% dos cheques?</li></ol></section>
+<div class="ref"><p>LECUN, Y. et al. Gradient-based learning applied to document recognition. <i>Proceedings of the IEEE</i>, v. 86, n. 11, p. 2278-2324, 1998.</p></div>
+</main>
+<script src="comum.js"></script><script src="rejsim.js"></script>
+<script>
+const C=SIM.c,I=SIM.i,TOT=C.length+I.length;
+function conta(t){const a=C.filter(v=>v>=t).length,e=I.filter(v=>v>=t).length;return{a,e,r:TOT-a-e};}
+function custo(t){const k=conta(t);return k.r*(+$('#cr').value)+k.e*(+$('#ce').value);}
+let tb=0;
+function atualiza(){const t=+$('#t').value;$('#vt').textContent=fmt(t,3);const k=conta(t);const pc=100*k.a/TOT,pe=100*k.e/TOT,pr=100*k.r/TOT;
+ $('#pc').textContent=fmt(pc,1)+'%';$('#pe').textContent=fmt(pe,1)+'%';$('#pr').textContent=fmt(pr,1)+'%';
+ $('#meta').innerHTML=(pe<=1&&pc>=50)?'<span class="ok">Economicamente viável segundo o critério dos bancos: pelo menos 50% corretos com no máximo 1% de erro.</span>':'Ainda não viável: a meta é ≥ 50% corretos e ≤ 1% de erro.'+(pe>1?' Há erros demais: suba o limiar.':' Rejeição demais: baixe o limiar.');
+ $('#vcr').textContent=$('#cr').value;$('#vce').textContent=$('#ce').value;let best=1e18;for(let k=0;k<=200;k++){const s=k/200;const c=custo(s);if(c<best){best=c;tb=s;}}
+ $('#ct').textContent=fmt(custo(t),0);$('#tb').textContent=fmt(tb,3)+' (custo '+fmt(best,0)+')';
+ const c=$('#cH').getContext('2d'),w=860,h=230;c.fillStyle='#fff';c.fillRect(0,0,w,h);const nb=40,hc=Array(nb).fill(0),hi=Array(nb).fill(0);C.forEach(v=>hc[Math.min(nb-1,Math.floor(v*nb))]++);I.forEach(v=>hi[Math.min(nb-1,Math.floor(v*nb))]++);
+ const mx=Math.max(...hc.map((v,k)=>v+hi[k]));const bw=(w-40)/nb;
+ for(let k=0;k<nb;k++){const x=20+k*bw,hC=hc[k]/mx*(h-50),hI=hi[k]/mx*(h-50);const rej=(k+1)/nb<=t;c.globalAlpha=rej?0.35:1;c.fillStyle=COR.verde;c.fillRect(x,h-25-hC,bw-2,hC);c.fillStyle=COR.verm;c.fillRect(x,h-25-hC-hI,bw-2,hI);c.globalAlpha=1;}
+ const xt=20+t*(w-40);c.strokeStyle=COR.gold;c.lineWidth=3;c.beginPath();c.moveTo(xt,10);c.lineTo(xt,h-20);c.stroke();
+ c.fillStyle='#6B7280';c.font='12px sans-serif';c.fillText('confiança 0',16,h-6);c.fillText('1',w-24,h-6);c.fillStyle=COR.verde;c.fillText('■ leituras corretas',24,18);c.fillStyle=COR.verm;c.fillText('■ leituras erradas',150,18);c.fillStyle=COR.gold;c.fillText('← rejeitados',Math.max(4,xt-90),44);}
+function vaiOtimo(){$('#t').value=tb;atualiza();}
+['#t','#cr','#ce'].forEach(i=>$(i).oninput=atualiza);atualiza();
+</script>
+</body></html>

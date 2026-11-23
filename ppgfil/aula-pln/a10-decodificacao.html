@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 10 · Estratégias de decodificação</title><link rel="stylesheet" href="estilo.css"></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · PLN e Transformers</span></header>
+<main>
+<p class="tag">Atividade 10 · Inferência e geração de texto</p>
+<h1>Gulosa, top-k, top-p, temperatura e feixe: como o modelo escolhe a próxima palavra</h1>
+<section class="caixa azul"><h2>Contexto</h2>
+<p>Na inferência, o modelo produz <b>logits</b> (escores não normalizados) para cada token do vocabulário; a softmax os transforma em probabilidades P(w<sub>i</sub>) = e<sup>logit<sub>i</sub></sup>/Σ<sub>j</sub>e<sup>logit<sub>j</sub></sup>. Uma <b>estratégia de decodificação</b> escolhe o token; ele é acrescentado à entrada e o processo se repete até uma condição de parada (token de fim, comprimento máximo). Aqui o "modelo" é um pequeno modelo de trigramas treinado num corpus em português, para que você veja tudo o que acontece (HOLTZMAN et al., 2020; FAN; LEWIS; DAUPHIN, 2018).</p>
+</section>
+<section class="painel"><h2>1. Configure a geração</h2>
+<div class="linha"><div><label>Início (prompt)</label><br><input type="text" id="prompt" value="o gato" style="width:100%"></div>
+<div><label>Estratégia</label><br><select id="est"><option value="greedy">gulosa (greedy)</option><option value="topk" selected>amostragem top-k</option><option value="topp">amostragem top-p (núcleo)</option><option value="temp">amostragem com temperatura</option><option value="beam">busca em feixe (beam)</option></select></div></div>
+<div class="linha"><div class="ctl"><label>temperatura T <span class="val" id="vT"></span></label><input type="range" id="T" min="0.1" max="2.5" step="0.05" value="1"></div>
+<div class="ctl"><label>k <span class="val" id="vk"></span></label><input type="range" id="k" min="1" max="10" value="3"></div>
+<div class="ctl"><label>p <span class="val" id="vp"></span></label><input type="range" id="p" min="0.1" max="1" step="0.05" value="0.8"></div>
+<div class="ctl"><label>feixe B <span class="val" id="vB"></span></label><input type="range" id="B" min="1" max="5" value="3"></div>
+<div class="ctl"><label>máximo de tokens <span class="val" id="vM"></span></label><input type="range" id="M" min="3" max="25" value="12"></div></div>
+<p><button onclick="gera()">gerar</button><button class="sec" onclick="passo()">um passo de cada vez</button><button class="ouro" onclick="limpa()">recomeçar</button></p>
+<div id="saida" class="revela"></div>
+</section>
+<section class="painel"><h2>2. A distribuição da próxima palavra</h2><div id="dist"></div></section>
+<section class="painel"><h2>3. Comparação</h2><div id="tab"></div></section>
+<section class="caixa creme"><h2>Para discutir</h2>
+<ol><li>A estratégia gulosa é determinista; a amostragem é "criativa". De onde vem a criatividade de um texto gerado: do modelo, do acaso ou de quem escolhe a temperatura?</li>
+<li>Com temperatura alta, o texto vira disparate; com baixa, repetição. Que relação há entre probabilidade, verdade e interesse de uma frase?</li></ol></section>
+<div class="ref"><p>YADAV, R. <i>Transformer architecture</i>: complete developer study notes. [S. l.: s. n.], [202-]. Seção 12. YADAV, R. <i>NLP</i>: complete developer study notes. [S. l.: s. n.], [202-]. Seção 12.</p>
+<p>HOLTZMAN, A. et al. The curious case of neural text degeneration. In: ICLR, 2020. <i>Proceedings</i> [...]. 2020.</p>
+<p>FAN, A.; LEWIS, M.; DAUPHIN, Y. Hierarchical neural story generation. In: ANNUAL MEETING OF THE ACL, 56., 2018, Melbourne. <i>Proceedings</i> [...]. Stroudsburg: ACL, 2018. p. 889-898.</p></div>
+</main>
+<script src="pln.js"></script>
+<script>
+const CORPUS=`o gato dorme no sofá . o gato come ração . o gato sobe no telhado . o gato brinca com a bola . o gato dorme na cama . o cachorro late para o carteiro . o cachorro dorme no quintal . o cachorro come ração . o cachorro brinca com a bola . a menina lê um livro . a menina brinca com o gato . a menina dorme cedo . o menino lê um gibi . o menino joga bola no quintal . o livro conta uma história . a história fala de um gato . o modelo lê o texto . o modelo prevê a próxima palavra . a próxima palavra é escolhida pelo modelo . o texto fala de um modelo .`;
+const T=tokenizar(CORPUS.replace(/\./g,' PONTO '));const C3={},C2={};const toks=T.map(w=>w==='PONTO'?'.':w);
+for(let i=0;i<toks.length;i++){if(i>=1){const a=toks[i-1];C2[a]=C2[a]||{};C2[a][toks[i]]=(C2[a][toks[i]]||0)+1;}if(i>=2){const a=toks[i-2]+' '+toks[i-1];C3[a]=C3[a]||{};C3[a][toks[i]]=(C3[a][toks[i]]||0)+1;}}
+const VOC=[...new Set(toks)];
+function logits(h){const a=h.slice(-2).join(' '),b=h[h.length-1];const c3=C3[a]||{},c2=C2[b]||{};const t3=Object.values(c3).reduce((x,y)=>x+y,0),t2=Object.values(c2).reduce((x,y)=>x+y,0);
+ return VOC.map(w=>{const p=(t3?0.7*(c3[w]||0)/t3:0)+(t2?(t3?0.25:0.95)*(c2[w]||0)/t2:0)+0.05/VOC.length;return Math.log(p);});}
+let hist=[],R=Math.random;
+function dist(h){const T=+$('#T').value,est=$('#est').value;const lg=logits(h);const usaT=(est==='temp'||est==='topk'||est==='topp')?T:1;const p=softmaxLinha(lg,usaT);let ord=VOC.map((w,i)=>({w,lg:lg[i],p:p[i]})).sort((a,b)=>b.p-a.p);
+ let keep=new Set();if(est==='greedy'||est==='beam')keep.add(ord[0].w);if(est==='temp')ord.forEach(o=>keep.add(o.w));if(est==='topk')ord.slice(0,+$('#k').value).forEach(o=>keep.add(o.w));if(est==='topp'){let s=0;for(const o of ord){keep.add(o.w);s+=o.p;if(s>=+$('#p').value)break;}}
+ return {ord,keep};}
+function escolhe(h){const {ord,keep}=dist(h);if($('#est').value==='greedy')return ord[0].w;const c=ord.filter(o=>keep.has(o.w));const s=c.reduce((a,o)=>a+o.p,0);let r=R()*s;for(const o of c){r-=o.p;if(r<=0)return o.w;}return c[c.length-1].w;}
+function mostraDist(h){const {ord,keep}=dist(h);$('#dist').innerHTML=`<p>Contexto: <span class="tok">${esc(h.slice(-2).join(' '))}</span></p>`+tabela(['Token','logit','P (com T)','',''],ord.slice(0,10).map(o=>[esc(o.w),fmt(o.lg,2),fmt(o.p,3),`<div class="barra" style="width:160px"><div style="width:${100*o.p}%;background:${keep.has(o.w)?'#A87A36':'#D1D5DB'}"></div></div>`,keep.has(o.w)?'<span class="ok">candidato</span>':'<span class="muted">cortado</span>']))+
+ `<p class="muted">Dourado = tokens que a estratégia pode escolher. ${$('#est').value==='topp'?'Top-p: o menor conjunto cuja probabilidade acumulada é ≥ p.':''}</p>`;}
+function beam(){const B=+$('#B').value,M=+$('#M').value;let beams=[{h:tokenizar($('#prompt').value.toLowerCase()),lp:0,fim:false}];const log=[];
+ for(let s=0;s<M;s++){let cand=[];beams.forEach(b=>{if(b.fim){cand.push(b);return;}const p=softmaxLinha(logits(b.h));VOC.forEach((w,i)=>cand.push({h:[...b.h,w],lp:b.lp+Math.log(p[i]),fim:w==='.'}));});cand.sort((a,b)=>b.lp-a.lp);beams=cand.slice(0,B);log.push(beams.map(b=>b.h.join(' ')+` (log P = ${fmt(b.lp,2)})`));if(beams.every(b=>b.fim))break;}
+ return {best:beams[0],log};}
+function gera(){const est=$('#est').value;if(est==='beam'){const {best,log}=beam();hist=best.h;$('#saida').innerHTML=`<b>${esc(best.h.join(' '))}</b><details><summary>ver os feixes a cada passo</summary>${log.map((l,i)=>`<p><b>passo ${i+1}</b><br>${l.map(esc).join('<br>')}</p>`).join('')}</details>`;mostraDist(best.h);return;}
+ hist=tokenizar($('#prompt').value.toLowerCase());for(let i=0;i<+$('#M').value;i++){const w=escolhe(hist);hist.push(w);if(w==='.')break;}$('#saida').innerHTML=`<b>${esc(hist.join(' '))}</b><br><span class="muted">${hist[hist.length-1]==='.'?'Parou ao gerar o token de fim ".".':'Parou no comprimento máximo.'}</span>`;mostraDist(hist);}
+function passo(){if(!hist.length)hist=tokenizar($('#prompt').value.toLowerCase());mostraDist(hist);const w=escolhe(hist);hist.push(w);$('#saida').innerHTML=`<b>${esc(hist.join(' '))}</b> <span class="muted">(acrescentado: "${esc(w)}")</span>`;}
+function limpa(){hist=[];$('#saida').innerHTML='';mostraDist(tokenizar($('#prompt').value.toLowerCase()));}
+function rot(){['T','k','p','B','M'].forEach(x=>$('#v'+x).textContent=['T','p'].includes(x)?fmt(+$('#'+x).value,2):$('#'+x).value);mostraDist(hist.length?hist:tokenizar($('#prompt').value.toLowerCase()));}
+$('#tab').innerHTML=tabela(['Estratégia','Descrição','Prós','Contras'],[['Gulosa','sempre o token mais provável','rápida e simples','pouca diversidade, repetições'],['Feixe (beam)','mantém as B melhores sequências a cada passo','melhor qualidade global','mais cara'],['Top-k','amostra entre os k mais prováveis','mais diversa','pode gerar texto menos relevante'],['Top-p (núcleo)','amostra no menor conjunto com prob. acumulada ≥ p','bom equilíbrio','exige ajustar p'],['Temperatura','divide os logits por T antes da softmax','controla a aleatoriedade','T alta gera disparates']]);
+['#T','#k','#p','#B','#M'].forEach(i=>$(i).oninput=rot);$('#est').onchange=rot;$('#prompt').oninput=limpa;rot();gera();
+</script>
+</body></html>

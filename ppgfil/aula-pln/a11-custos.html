@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 11 · O custo de um LLM</title><link rel="stylesheet" href="estilo.css"></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · PLN e Transformers</span></header>
+<main>
+<p class="tag">Atividade 11 · Eficiência, treinamento e implantação</p>
+<h1>O custo de um LLM: cache KV, quantização, precisão mista e ZeRO</h1>
+<section class="caixa azul"><h2>Contexto</h2>
+<p>Na atenção padrão, tempo e memória crescem como O(n²) no tamanho da sequência. Na geração, um token por vez, recalcular K e V de todos os tokens anteriores a cada passo é desperdício: o <b>cache KV</b> guarda K e V já calculados. Para caber em GPUs, modelos usam <b>quantização</b> (menos bits por peso), <b>precisão mista</b> (FP16/BF16) e, no treino distribuído, o <b>ZeRO</b>, que reparte estados do otimizador, gradientes e parâmetros entre as GPUs (MICIKEVICIUS et al., 2018; RAJBHANDARI et al., 2020).</p>
+</section>
+<section class="painel"><h2>1. Com e sem cache KV</h2>
+<div class="linha"><div class="ctl"><label>tokens gerados n <span class="val" id="vn"></span></label><input type="range" id="n" min="10" max="4000" step="10" value="1000"></div>
+<div class="ctl"><label>camadas L <span class="val" id="vL"></span></label><input type="range" id="L" min="1" max="96" value="32"></div>
+<div class="ctl"><label>d<sub>model</sub> <span class="val" id="vd"></span></label><input type="range" id="d" min="256" max="12288" step="256" value="4096"></div></div>
+<canvas id="ckv" width="860" height="240"></canvas><div id="kv"></div>
+</section>
+<section class="painel"><h2>2. Memória dos pesos: quantização</h2>
+<div class="ctl"><label>parâmetros (bilhões) <span class="val" id="vP"></span></label><input type="range" id="P" min="0.1" max="180" step="0.1" value="10"></div>
+<div id="quant"></div>
+</section>
+<section class="painel"><h2>3. Treinar com Adam: memória por GPU e ZeRO</h2>
+<div class="linha"><div class="ctl"><label>GPUs N<sub>d</sub> <span class="val" id="vN"></span></label><input type="range" id="N" min="1" max="1024" value="64"></div></div>
+<div id="zero"></div>
+</section>
+<section class="painel"><h2>4. Agenda da taxa de aprendizado: aquecimento + decaimento cosseno</h2>
+<div class="linha"><div class="ctl"><label>pico η<sub>máx</sub> (×10⁻⁴) <span class="val" id="vlr"></span></label><input type="range" id="lr" min="0.1" max="10" step="0.1" value="1"></div><div class="ctl"><label>passos de aquecimento (%) <span class="val" id="vw"></span></label><input type="range" id="w" min="0" max="30" value="5"></div></div>
+<canvas id="clr" width="860" height="220"></canvas>
+</section>
+<section class="caixa creme"><h2>Para discutir</h2>
+<ol><li>Treinar e servir LLMs exige muita energia e hardware caro, concentrado em poucas empresas. A eficiência técnica é também uma questão política e ambiental?</li>
+<li>Quantizar para 4 bits quase não muda as respostas na maioria dos casos. O que isso sugere sobre o quanto da "precisão" dos pesos é realmente informação?</li></ol></section>
+<div class="ref"><p>YADAV, R. <i>Transformer architecture</i>: complete developer study notes. [S. l.: s. n.], [202-]. Seções 13, 16 e 17.</p>
+<p>MICIKEVICIUS, P. et al. Mixed precision training. In: ICLR, 2018. <i>Proceedings</i> [...]. 2018.</p>
+<p>RAJBHANDARI, S. et al. ZeRO: memory optimizations toward training trillion parameter models. In: SC20, 2020. <i>Proceedings</i> [...]. IEEE, 2020. p. 1-16.</p>
+<p>LOSHCHILOV, I.; HUTTER, F. Decoupled weight decay regularization. In: ICLR, 2019. <i>Proceedings</i> [...]. 2019.</p></div>
+</main>
+<script src="pln.js"></script>
+<script>
+const gb=b=>b>=1e12?fmt(b/1e12,2)+' TB':b>=1e9?fmt(b/1e9,1)+' GB':fmt(b/1e6,1)+' MB';const big=x=>x>=1e12?fmt(x/1e12,1)+' trilhões':x>=1e9?fmt(x/1e9,1)+' bilhões':x>=1e6?fmt(x/1e6,1)+' milhões':Math.round(x).toLocaleString('pt-BR');
+function kv(){const n=+$('#n').value,L=+$('#L').value,d=+$('#d').value;$('#vn').textContent=n;$('#vL').textContent=L;$('#vd').textContent=d;
+ const sem=n*(n+1)*(2*n+1)/6,com=n*(n+1)/2;const mem=2*L*n*d*2;
+ const c=$('#ckv').getContext('2d'),W=860,H=240;c.fillStyle='#fff';c.fillRect(0,0,W,H);const xs=[...Array(101)].map((_,i)=>Math.max(1,Math.round(i*n/100)));const f1=t=>t*(t+1)*(2*t+1)/6,f2=t=>t*(t+1)/2;const mx=f1(n);
+ [[f1,'#C2413B','sem cache: em cada passo t, recalcula atenção de t tokens (≈ Σ t²)'],[f2,'#123B6A','com cache: cada passo usa só a consulta nova (≈ Σ t)']].forEach(([f,cor,l],k)=>{c.strokeStyle=cor;c.lineWidth=3;c.beginPath();xs.forEach((t,i)=>{const x=30+i*(W-50)/100,y=H-25-f(t)/mx*(H-50);i?c.lineTo(x,y):c.moveTo(x,y);});c.stroke();c.fillStyle=cor;c.font='13px sans-serif';c.fillText(l,40,20+18*k);});
+ $('#kv').innerHTML=`<div class="linha centro"><div><span class="muted">operações de atenção, sem cache</span><br><span class="grande">${big(sem*L*d)}</span></div><div><span class="muted">com cache</span><br><span class="grande ok">${big(com*L*d)}</span></div><div><span class="muted">economia</span><br><span class="grande">${fmt(sem/com,0)}×</span></div><div><span class="muted">memória do cache (FP16)</span><br><span class="grande">${gb(mem)}</span></div></div><p class="muted">Memória do cache = 2 (K e V) × L × n × d<sub>model</sub> × 2 bytes, por sequência. O cache troca cálculo por memória: O(n·d) por camada, linear no tamanho da sequência.</p>`;}
+function quant(){const P=+$('#P').value*1e9;$('#vP').textContent=fmt(+$('#P').value,1);const F=[['FP32',4,'alta','mais lento','alta (referência)'],['FP16',2,'baixa','mais rápido','comparável'],['BF16',2,'baixa','mais rápido','comparável (faixa de valores maior que FP16)'],['INT8',1,'menor','mais rápido na inferência','pequena perda'],['INT4',0.5,'mínima','mais rápido na inferência','perda maior, muitas vezes aceitável']];
+ $('#quant').innerHTML=tabela(['Formato','Bytes por parâmetro','Memória dos pesos','',' Velocidade','Acurácia'],F.map(([f,b,,v,a])=>[f,fmt(b,1),`<b>${gb(P*b)}</b>`,`<div class="barra" style="width:160px"><div style="width:${100*b/4}%"></div></div>`,v,a]))+`<p class="muted">Exemplo das notas: um modelo de 10 bilhões de parâmetros ocupa 20 GB em FP16, cerca de 10 GB em INT8 e cerca de 5 GB em INT4. Isso conta só os pesos (sem cache KV nem ativações).</p>`;zero();}
+function zero(){const P=+$('#P').value*1e9,N=+$('#N').value;$('#vN').textContent=N;const K=12;const base=(2+2+K)*P,os=2*P+2*P+K*P/N,osg=2*P+(2+K)*P/N,all=(2+2+K)*P/N;
+ $('#zero').innerHTML=tabela(['Estratégia','O que é repartido','Memória por GPU'],[['Paralelismo de dados simples','nada (cada GPU guarda tudo)',`<b>${gb(base)}</b>`],['ZeRO estágio 1','estados do otimizador',`<b>${gb(os)}</b>`],['ZeRO estágio 2','+ gradientes',`<b>${gb(osg)}</b>`],['ZeRO estágio 3','+ parâmetros',`<b>${gb(all)}</b>`]])+`<p class="muted">Precisão mista com Adam: 2 bytes (pesos FP16) + 2 (gradientes FP16) + 12 (cópia FP32 dos pesos, momento e variância) = 16 bytes por parâmetro (RAJBHANDARI et al., 2020). Não inclui ativações.</p>`;}
+function lr(){const mx=+$('#lr').value*1e-4,wp=+$('#w').value/100;$('#vlr').textContent=fmt(+$('#lr').value,1);$('#vw').textContent=$('#w').value+'%';const c=$('#clr').getContext('2d'),W=860,H=220;c.fillStyle='#fff';c.fillRect(0,0,W,H);c.strokeStyle=COR.gold;c.lineWidth=3;c.beginPath();
+ for(let i=0;i<=200;i++){const s=i/200;const v=s<wp?mx*s/wp:mx*0.5*(1+Math.cos(Math.PI*(s-wp)/(1-wp)));const x=30+s*(W-50),y=H-25-(v/mx)*(H-50);i?c.lineTo(x,y):c.moveTo(x,y);}c.stroke();
+ c.fillStyle='#6B7280';c.font='12px sans-serif';c.fillText('passos de treino →',W-120,H-6);c.fillText('η (pico = '+fmt(mx*1e4,1)+'×10⁻⁴)',34,14);if(wp>0){c.fillText('aquecimento',30+wp*(W-50)/2-30,H-30);}}
+['#n','#L','#d'].forEach(i=>$(i).oninput=kv);$('#P').oninput=quant;$('#N').oninput=zero;['#lr','#w'].forEach(i=>$(i).oninput=lr);kv();quant();lr();
+</script>
+</body></html>

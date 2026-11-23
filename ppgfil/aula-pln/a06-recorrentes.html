@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 6 · Redes neurais para PLN</title><link rel="stylesheet" href="estilo.css"></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · PLN e Transformers</span></header>
+<main>
+<p class="tag">Atividade 6 · Redes neurais para PLN</p>
+<h1>Ativações e memória: RNN, LSTM e GRU lembrando (ou esquecendo) uma palavra</h1>
+<section class="caixa azul"><h2>Contexto</h2>
+<p>Funções de ativação introduzem não linearidade nas redes. As redes recorrentes (RNN) leem o texto um token por vez e guardam um <b>estado oculto</b> h<sub>t</sub> = tanh(W<sub>x</sub>x<sub>t</sub> + W<sub>h</sub>h<sub>t−1</sub> + b). A LSTM acrescenta uma <b>célula de memória</b> e três portas (esquecimento, entrada, saída); a GRU usa duas portas (atualização e reinício) (HOCHREITER; SCHMIDHUBER, 1997; CHO et al., 2014).</p>
+</section>
+<section class="painel"><h2>1. Funções de ativação</h2>
+<div class="linha" style="gap:.5rem"><label><input type="checkbox" class="fa" value="sig" checked> sigmoide</label><label><input type="checkbox" class="fa" value="tanh" checked> tanh</label><label><input type="checkbox" class="fa" value="relu" checked> ReLU</label><label><input type="checkbox" class="fa" value="leaky" checked> Leaky ReLU (α = 0,1)</label></div>
+<canvas id="cf" width="860" height="280"></canvas>
+<div class="ctl"><label>x <span class="val" id="vx"></span></label><input type="range" id="x" min="-4" max="4" step="0.1" value="1"></div><div id="fx"></div>
+</section>
+<section class="painel"><h2>2. Uma palavra importante no início da frase</h2>
+<p class="muted">Entrada: um sinal forte no passo 1 (por exemplo, o sujeito "As meninas") e ruído fraco depois. Quanto do sinal ainda está na memória 20 passos depois, quando o verbo precisa concordar?</p>
+<div class="linha"><div>
+<h3>RNN simples</h3><div class="ctl"><label>peso recorrente w<sub>h</sub> <span class="val" id="vwh"></span></label><input type="range" id="wh" min="0" max="1.5" step="0.01" value="0.8"></div>
+<h3>LSTM</h3><div class="ctl"><label>porta de esquecimento f <span class="val" id="vf"></span></label><input type="range" id="f" min="0" max="1" step="0.01" value="0.95"></div>
+<div class="ctl"><label>porta de entrada i (após o passo 1) <span class="val" id="vi"></span></label><input type="range" id="i" min="0" max="1" step="0.01" value="0.05"></div>
+<div class="ctl"><label>porta de saída o <span class="val" id="vo"></span></label><input type="range" id="o" min="0" max="1" step="0.01" value="1"></div>
+<h3>GRU</h3><div class="ctl"><label>porta de atualização z (após o passo 1) <span class="val" id="vz"></span></label><input type="range" id="z" min="0" max="1" step="0.01" value="0.05"></div>
+</div><div><canvas id="cm" width="460" height="330"></canvas><div id="mem"></div></div></div>
+</section>
+<section class="painel"><h2>3. Comparação</h2><div id="tab"></div></section>
+<section class="caixa creme"><h2>Para discutir</h2>
+<ol><li>A LSTM aprende <b>o que esquecer</b>. Que relação há entre memória, esquecimento seletivo e compreensão de um texto longo?</li>
+<li>Ler "um token por vez", na ordem, parece próximo de como lemos. Por que, então, o Transformer abandonou a recorrência? O que isso diz sobre a diferença entre modelar a leitura humana e resolver a tarefa?</li></ol></section>
+<div class="ref"><p>YADAV, R. <i>NLP</i>: complete developer study notes. [S. l.: s. n.], [202-]. Seção 6.</p>
+<p>HOCHREITER, S.; SCHMIDHUBER, J. Long short-term memory. <i>Neural Computation</i>, v. 9, n. 8, p. 1735-1780, 1997.</p>
+<p>CHO, K. et al. Learning phrase representations using RNN encoder-decoder for statistical machine translation. In: EMNLP, 2014, Doha. <i>Proceedings</i> [...]. Stroudsburg: ACL, 2014. p. 1724-1734.</p></div>
+</main>
+<script src="pln.js"></script>
+<script>
+const F={sig:[x=>1/(1+Math.exp(-x)),'#123B6A','sigmoide: σ(x) = 1/(1 + e^(−x)), intervalo (0, 1)'],tanh:[x=>Math.tanh(x),'#1D9E75','tanh(x), intervalo (−1, 1)'],relu:[x=>Math.max(0,x),'#A87A36','ReLU: max(0, x), intervalo [0, ∞)'],leaky:[x=>Math.max(0.1*x,x),'#C2413B','Leaky ReLU: max(αx, x), intervalo (−∞, ∞)']};
+function ativ(){const c=$('#cf').getContext('2d'),W=860,H=280;c.fillStyle='#fff';c.fillRect(0,0,W,H);const px=x=>W/2+x*(W-60)/8,py=y=>H/2-y*(H-40)/6;c.strokeStyle='#E5E7EB';c.beginPath();c.moveTo(0,py(0));c.lineTo(W,py(0));c.moveTo(px(0),0);c.lineTo(px(0),H);c.stroke();
+ const x0=+$('#x').value;$('#vx').textContent=fmt(x0,1);const rows=[];$$('.fa').filter(e=>e.checked).forEach(e=>{const [f,cor,d]=F[e.value];c.strokeStyle=cor;c.lineWidth=3;c.beginPath();for(let k=0;k<=200;k++){const x=-4+8*k/200;const y=Math.max(-3,Math.min(3,f(x)));k?c.lineTo(px(x),py(y)):c.moveTo(px(x),py(y));}c.stroke();c.fillStyle=cor;c.beginPath();c.arc(px(x0),py(Math.max(-3,Math.min(3,f(x0)))),5,0,7);c.fill();rows.push([`<span style="color:${cor}">●</span> ${d}`,fmt(f(x0),3)]);});
+ $('#fx').innerHTML=tabela(['Função','f(x)'],rows);}
+function mem(){const T=21,wh=+$('#wh').value,f=+$('#f').value,i=+$('#i').value,o=+$('#o').value,z=+$('#z').value;['wh','f','i','o','z'].forEach(k=>$('#v'+k).textContent=fmt(+$('#'+k).value,2));
+ const x=t=>t===0?1:0;let h=0,c=0,g=0;const R=[],Lh=[],G=[];
+ for(let t=0;t<T;t++){h=Math.tanh(wh*h+1.5*x(t));R.push(h);const it=t===0?1:i;c=f*c+it*Math.tanh(1.5*x(t));Lh.push(o*Math.tanh(c));const zt=t===0?1:z;g=(1-zt)*g+zt*Math.tanh(1.5*x(t));G.push(g);}
+ const cv=$('#cm').getContext('2d'),W=460,H=330;cv.fillStyle='#fff';cv.fillRect(0,0,W,H);const px=t=>30+t*(W-50)/(T-1),py=v=>H-30-v*(H-60);cv.strokeStyle='#E5E7EB';cv.beginPath();cv.moveTo(30,py(0));cv.lineTo(W,py(0));cv.stroke();
+ [[R,'#9CA3AF','RNN'],[Lh,'#123B6A','LSTM'],[G,'#A87A36','GRU']].forEach(([s,cor,n],k)=>{cv.strokeStyle=cor;cv.lineWidth=3;cv.beginPath();s.forEach((v,t)=>t?cv.lineTo(px(t),py(v)):cv.moveTo(px(t),py(v)));cv.stroke();cv.fillStyle=cor;cv.font='13px sans-serif';cv.fillText(n,W-60,20+16*k);});
+ cv.fillStyle='#6B7280';cv.fillText('passo de tempo →',W-130,H-8);cv.fillText('memória do sinal',34,14);
+ $('#mem').innerHTML=tabela(['Modelo','Memória no passo 20'],[['RNN',fmt(R[20],3)],['LSTM',fmt(Lh[20],3)],['GRU',fmt(G[20],3)]])+`<p class="muted">Na RNN, a memória é multiplicada por w<sub>h</sub> e espremida pela tanh a cada passo e tende a desaparecer. Na LSTM, com f perto de 1 e i pequeno, a célula c<sub>t</sub> = f·c<sub>t−1</sub> + i·g<sub>t</sub> preserva a informação.</p>`;}
+$('#tab').innerHTML=tabela(['Aspecto','RNN','LSTM','GRU'],[['Gradiente que some','sim','não (mitigado)','menos grave'],['Portas','nenhuma','3 (f, i, o)','2 (z, r)'],['Complexidade','baixa','alta','média'],['Tempo de treino','mais rápido','mais lento','mais rápido que LSTM'],['Desempenho','tarefas básicas','melhor em dependências longas','comparável à LSTM'],['Uso típico','sequências simples','tarefas complexas de PLN','quando se quer treino mais rápido']]);
+$$('.fa').forEach(e=>e.onchange=ativ);$('#x').oninput=ativ;['wh','f','i','o','z'].forEach(k=>$('#'+k).oninput=mem);ativ();mem();
+</script>
+</body></html>

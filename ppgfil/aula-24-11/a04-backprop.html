@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 4 · Retropropagação à mão</title><link rel="stylesheet" href="estilo.css"></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · Aula de 24/11</span></header>
+<main>
+<p class="tag">Atividade 4 · LeCun, Bengio e Hinton (2015), Fig. 1b a 1d</p>
+<h1>Retropropagação à mão: quem é responsável pelo erro?</h1>
+<section class="caixa azul"><h2>Contexto</h2>
+<p>A retropropagação é "nada mais do que uma aplicação prática da regra da cadeia" (LECUN; BENGIO; HINTON, 2015, p. 438): o efeito de uma pequena mudança se compõe multiplicando derivadas. Calculando de trás para frente, ela distribui a cada peso a sua parcela de <b>responsabilidade</b> pelo erro. É a solução do chamado <b>problema da atribuição de crédito</b> (LECUN et al., 1998, p. 2304, 2317).</p>
+</section>
+<section class="painel">
+<h2>1. A regra da cadeia com as mãos</h2>
+<p>Seja <i>y</i> = 3<i>x</i> e <i>z</i> = <i>y</i>². Partimos de <i>x</i> = 1 (logo <i>y</i> = 3, <i>z</i> = 9) e mudamos <i>x</i> um pouquinho.</p>
+<div class="ctl"><label>Δx <span class="val" id="vdx"></span></label><input type="range" id="dx" min="-0.2" max="0.2" step="0.005" value="0.05"></div>
+<table><tr><th></th><th>Previsto pela regra da cadeia</th><th>Valor exato</th></tr>
+<tr><td>Δy</td><td id="py"></td><td id="ey"></td></tr><tr><td>Δz</td><td id="pz"></td><td id="ez"></td></tr></table>
+<p class="muted">∂y/∂x = 3 e ∂z/∂y = 2y = 6, logo ∂z/∂x = 6 × 3 = 18. Para Δx pequeno, previsão e valor exato coincidem.</p>
+</section>
+<section class="painel">
+<h2>2. Uma rede minúscula</h2>
+<p>Entradas x₁ = 1 e x₂ = 2. Camada oculta com ReLU, h = max(0, z). Saída linear y. Alvo t = 1. Erro E = ½(y − t)².</p>
+<canvas id="rede" width="620" height="270"></canvas>
+<p class="muted">Pesos: w₁₁ = 0,5 (x₁→h₁), w₂₁ = 0,25 (x₂→h₁), w₁₂ = −0,5 (x₁→h₂), w₂₂ = 0,5 (x₂→h₂), v₁ = 1 (h₁→y), v₂ = 2 (h₂→y).</p>
+<h3>Passagem para frente</h3>
+<table id="tf"></table>
+<h3>Passagem para trás (o crédito do erro)</h3>
+<table id="tb"></table>
+<p><button onclick="confere()">conferir respostas</button><button class="sec" onclick="revela()">mostrar todas</button></p>
+<div id="placar" class="revela oculto"></div>
+<h3>3. Aprender = corrigir cada peso na proporção da sua culpa</h3>
+<div class="ctl"><label>Taxa de aprendizado η <span class="val" id="veta"></span></label><input type="range" id="eta" min="0.005" max="0.1" step="0.005" value="0.02"></div>
+<button class="ouro" onclick="atualiza()">aplicar w ← w − η·∂E/∂w</button> <button class="sec" onclick="reset()">reiniciar</button>
+<p>Erro: <span class="grande num" id="Eatual"></span> <span id="hist" class="muted"></span></p>
+</section>
+<section class="caixa creme"><h2>Para discutir</h2>
+<ol><li>Em organizações, o "problema das muitas mãos" é a dificuldade de atribuir responsabilidade quando muitos contribuem para um resultado (THOMPSON, 1980). A retropropagação resolve um problema análogo de forma puramente causal e quantitativa. O que a analogia ilumina, e o que ela esconde?</li>
+<li>O peso com maior gradiente é o "mais culpado"? Culpa causal e culpa normativa são a mesma coisa?</li></ol></section>
+<div class="ref"><p>LECUN, Y.; BENGIO, Y.; HINTON, G. Deep learning. <i>Nature</i>, v. 521, n. 7553, p. 436-444, 2015.</p>
+<p>LECUN, Y. et al. Gradient-based learning applied to document recognition. <i>Proceedings of the IEEE</i>, v. 86, n. 11, p. 2278-2324, 1998.</p>
+<p>THOMPSON, D. F. Moral responsibility of public officials: the problem of many hands. <i>American Political Science Review</i>, v. 74, n. 4, p. 905-916, 1980.</p></div>
+</main>
+<script src="comum.js"></script>
+<script>
+function cadeia(){const d=+$('#dx').value;$('#vdx').textContent=fmt(d,3);$('#py').textContent='3 × Δx = '+fmt(3*d,3);$('#ey').textContent=fmt(3*(1+d)-3,3);$('#pz').textContent='18 × Δx = '+fmt(18*d,3);$('#ez').textContent=fmt(Math.pow(3*(1+d),2)-9,3);}
+$('#dx').oninput=cadeia;cadeia();
+const x=[1,2],t=1; let P;
+function reset(){P={w11:0.5,w21:0.25,w12:-0.5,w22:0.5,v1:1,v2:2};hist=[];calc();desenhaRede();$('#Eatual').textContent=fmt(V.E,4);$('#hist').textContent='';}
+let V={},hist=[];
+function calc(){const z1=P.w11*x[0]+P.w21*x[1],z2=P.w12*x[0]+P.w22*x[1],h1=Math.max(0,z1),h2=Math.max(0,z2),y=P.v1*h1+P.v2*h2,E=0.5*(y-t)**2,dy=y-t,dv1=h1*dy,dv2=h2*dy,dh1=P.v1*dy,dh2=P.v2*dy,dz1=dh1*(z1>0?1:0),dz2=dh2*(z2>0?1:0);
+ V={z1,z2,h1,h2,y,E,dy,dv1,dv2,dh1,dh2,dz1,dz2,dw11:x[0]*dz1,dw21:x[1]*dz1,dw12:x[0]*dz2,dw22:x[1]*dz2};}
+const F=[['z1','z₁ = w₁₁x₁ + w₂₁x₂'],['h1','h₁ = max(0, z₁)'],['z2','z₂ = w₁₂x₁ + w₂₂x₂'],['h2','h₂ = max(0, z₂)'],['y','y = v₁h₁ + v₂h₂'],['E','E = ½(y − t)²']];
+const Bk=[['dy','∂E/∂y = y − t'],['dv1','∂E/∂v₁ = h₁ · ∂E/∂y'],['dv2','∂E/∂v₂ = h₂ · ∂E/∂y'],['dh1','∂E/∂h₁ = v₁ · ∂E/∂y'],['dh2','∂E/∂h₂ = v₂ · ∂E/∂y'],['dz1','∂E/∂z₁ = ∂E/∂h₁ · relu′(z₁)'],['dz2','∂E/∂z₂ = ∂E/∂h₂ · relu′(z₂)'],['dw11','∂E/∂w₁₁ = x₁ · ∂E/∂z₁'],['dw21','∂E/∂w₂₁ = x₂ · ∂E/∂z₁'],['dw12','∂E/∂w₁₂ = x₁ · ∂E/∂z₂'],['dw22','∂E/∂w₂₂ = x₂ · ∂E/∂z₂']];
+function tabela(id,L){$(id).innerHTML='<tr><th>Quantidade</th><th>Sua resposta</th><th></th></tr>'+L.map(([k,l])=>`<tr><td style="text-align:left">${l}</td><td><input type="text" inputmode="decimal" id="i_${k}"></td><td id="r_${k}"></td></tr>`).join('');}
+tabela('#tf',F);tabela('#tb',Bk);
+function confere(){calc0();let ok=0,tot=0;[...F,...Bk].forEach(([k])=>{const el=$('#i_'+k);if(el.value.trim()==='')return;tot++;const v=parseFloat(el.value.replace(',','.').replace('−','-'));const c=Math.abs(v-V0[k])<0.011;if(c)ok++;$('#r_'+k).innerHTML=c?'<span class="ok">✓</span>':'<span class="erro">✗</span>';});
+ const p=$('#placar');p.classList.remove('oculto');p.innerHTML=`Acertos: <b>${ok}</b> de <b>${tot}</b> respondidas (de 17).`+(ok===17?' <span class="ok">Excelente: você retropropagou o erro!</span>':'');}
+let V0;function calc0(){const s=P;P={w11:0.5,w21:0.25,w12:-0.5,w22:0.5,v1:1,v2:2};calc();V0={...V};P=s;calc();}
+function revela(){calc0();[...F,...Bk].forEach(([k])=>{$('#i_'+k).value=fmt(V0[k],2);$('#r_'+k).innerHTML='';});}
+function atualiza(){const eta=+$('#eta').value;calc();hist.push(V.E);P.w11-=eta*V.dw11;P.w21-=eta*V.dw21;P.w12-=eta*V.dw12;P.w22-=eta*V.dw22;P.v1-=eta*V.dv1;P.v2-=eta*V.dv2;calc();desenhaRede();$('#Eatual').textContent=fmt(V.E,4);$('#hist').textContent='(antes: '+hist.slice(-4).map(e=>fmt(e,3)).join(' → ')+')';}
+$('#eta').oninput=()=>$('#veta').textContent=fmt(+$('#eta').value,3);$('#veta').textContent=fmt(0.02,3);
+function desenhaRede(){const c=$('#rede').getContext('2d'),w=620,h=270;c.fillStyle='#fff';c.fillRect(0,0,w,h);
+ const nos={x1:[70,70],x2:[70,200],h1:[310,70],h2:[310,200],y:[540,135]};
+ const ar=[['x1','h1',P.w11,'w₁₁'],['x2','h1',P.w21,'w₂₁'],['x1','h2',P.w12,'w₁₂'],['x2','h2',P.w22,'w₂₂'],['h1','y',P.v1,'v₁'],['h2','y',P.v2,'v₂']];
+ ar.forEach(([a,b,v,l],k)=>{const[p,q]=[nos[a],nos[b]];c.strokeStyle=v>=0?COR.navy:COR.verm;c.lineWidth=1+2.5*Math.min(2,Math.abs(v));c.beginPath();c.moveTo(...p);c.lineTo(...q);c.stroke();
+  const f=(k===1||k===2)?0.3:0.5;const mx=p[0]+(q[0]-p[0])*f,my=p[1]+(q[1]-p[1])*f;c.fillStyle='#fff';c.fillRect(mx-38,my-11,76,20);c.fillStyle=COR.gold;c.font='bold 13px sans-serif';c.textAlign='center';c.fillText(l+' = '+fmt(v,2),mx,my+4);});
+ const val={x1:'x₁ = 1',x2:'x₂ = 2',h1:'h₁ = '+fmt(V.h1),h2:'h₂ = '+fmt(V.h2),y:'y = '+fmt(V.y)};
+ Object.entries(nos).forEach(([k,[a,b]])=>{c.fillStyle=k==='y'?'#FBEAEA':(k[0]==='h'?COR.azul:'#fff');c.strokeStyle=COR.navy;c.lineWidth=2;c.beginPath();c.arc(a,b,30,0,7);c.fill();c.stroke();c.fillStyle=COR.navy;c.font='bold 13px sans-serif';c.textAlign='center';c.fillText(val[k],a,b+48);c.font='bold 16px serif';c.fillText(k[0]==='x'?'x':k[0]==='h'?'h':'y',a,b+5);});
+ c.fillStyle=COR.verm;c.font='bold 14px sans-serif';c.textAlign='center';c.fillText('E = '+fmt(V.E,3),540,40);}
+reset();
+</script>
+</body></html>

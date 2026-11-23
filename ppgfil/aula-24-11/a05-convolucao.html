@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 5 · Laboratório de convolução</title><link rel="stylesheet" href="estilo.css"></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · Aula de 24/11</span></header>
+<main>
+<p class="tag">Atividade 5 · Os dois artigos</p>
+<h1>Laboratório de convolução: um detector, todos os lugares</h1>
+<section class="caixa azul"><h2>Contexto</h2>
+<p>Uma camada convolucional passa o <b>mesmo filtro</b> (os mesmos pesos) por todas as posições da imagem: conexões locais e pesos compartilhados. O resultado é um <b>mapa de características</b>. Se a entrada se desloca, o mapa se desloca igualmente; o <b>pooling</b> (máximo ou média de uma vizinhança) torna o resultado pouco sensível a pequenos deslocamentos (LECUN et al., 1998, p. 2283-2284; LECUN; BENGIO; HINTON, 2015, p. 439).</p>
+</section>
+<section class="painel">
+<div class="linha">
+ <div class="centro"><b>1. Desenhe (ou escolha) um dígito</b><canvas id="cIn" class="grade" width="252" height="252"></canvas>
+  <div><button class="sec" onclick="g.limpar()">limpar</button><button class="sec" onclick="exemplo()">exemplo</button><button class="ouro" onclick="mover(2,0)">deslocar →</button><button class="ouro" onclick="mover(0,2)">deslocar ↓</button></div></div>
+ <div><b>2. Escolha o filtro 3×3</b>
+  <div class="ctl"><select id="selF" style="width:100%">
+   <option value="v">Borda vertical (Sobel)</option><option value="h">Borda horizontal (Sobel)</option><option value="d">Diagonal ↘</option><option value="e">Diagonal ↙</option><option value="m">Desfoque (média)</option><option value="c">Personalizado</option></select></div>
+  <table id="tF" style="width:auto;margin:auto"></table>
+  <p class="muted">Edite os números para criar seu próprio detector. São só 9 pesos (mais um viés), usados em todas as 676 posições.</p>
+ </div>
+</div>
+<div class="linha">
+ <div class="centro"><b>3. Mapa de características (26×26)</b><br><span class="muted">convolução seguida de ReLU</span><canvas id="cFm" class="grade" width="234" height="234"></canvas></div>
+ <div class="centro"><b>4. Max pooling 2×2 (13×13)</b><br><span class="muted">máximo de cada bloco 2×2</span><canvas id="cPl" class="grade" width="182" height="182"></canvas></div>
+</div>
+<div class="caixa verde" id="info"></div>
+</section>
+<section class="painel"><h2>Quanto custa não compartilhar?</h2>
+<p>Uma camada <b>totalmente conectada</b> que produzisse 26×26 = 676 saídas a partir de 28×28 = 784 pixels teria <b class="num">530.660</b> pesos (676 × 785). A camada convolucional com um filtro tem <b>10</b>. A LeNet-5 inteira tem 345.308 conexões, mas só 60 mil parâmetros livres, graças ao compartilhamento (LECUN et al., 1998, p. 2284).</p></section>
+<section class="caixa creme"><h2>Para discutir</h2>
+<ol><li>Compartilhar pesos é supor que "o que vale aqui vale em qualquer lugar". Essa é uma hipótese sobre o mundo (a estatística local das imagens não depende da posição) embutida na arquitetura. É um conhecimento <b>a priori</b>?</li>
+<li>Os autores relacionam convolução e pooling às células "simples" e "complexas" de Hubel e Wiesel (1962). Uma semelhança de arquitetura autoriza dizer que a rede "vê" como nós?</li></ol></section>
+<div class="ref"><p>LECUN, Y. et al. Gradient-based learning applied to document recognition. <i>Proceedings of the IEEE</i>, v. 86, n. 11, p. 2278-2324, 1998.</p>
+<p>LECUN, Y.; BENGIO, Y.; HINTON, G. Deep learning. <i>Nature</i>, v. 521, n. 7553, p. 436-444, 2015.</p>
+<p>HUBEL, D. H.; WIESEL, T. N. Receptive fields, binocular interaction and functional architecture in the cat's visual cortex. <i>The Journal of Physiology</i>, v. 160, n. 1, p. 106-154, 1962.</p></div>
+</main>
+<script src="digitos.js"></script><script src="comum.js"></script>
+<script>
+const N=28; const FIL={v:[-1,0,1,-2,0,2,-1,0,1],h:[-1,-2,-1,0,0,0,1,2,1],d:[2,1,0,1,0,-1,0,-1,-2],e:[0,1,2,-1,0,1,-2,-1,0],m:[1,1,1,1,1,1,1,1,1].map(v=>v/9),c:[0,0,0,0,1,0,0,0,0]};
+let K=FIL.v.slice(), anterior=null;
+const g=GradeDesenho($('#cIn'),N,()=>processa());
+function exemplo(){const d=Math.floor(Math.random()*10);const l=indicesDe(d);g.definir(ampliar(digito8(l[Math.floor(Math.random()*l.length)]),N,4));}
+function mover(dx,dy){anterior=pool(conv(g.img));g.definir(deslocar(g.img,N,dx,dy));}
+function tabelaF(){$('#tF').innerHTML=[0,1,2].map(i=>'<tr>'+[0,1,2].map(j=>`<td><input type="text" inputmode="decimal" style="width:3.6rem" id="k${i*3+j}" value="${(Math.round(K[i*3+j]*100)/100).toString().replace('.',',')}"></td>`).join('')+'</tr>').join('');
+ for(let k=0;k<9;k++)$('#k'+k).oninput=e=>{const v=parseFloat(e.target.value.replace(',','.').replace('−','-'));if(!isNaN(v)){K[k]=v;$('#selF').value='c';processa();}};}
+$('#selF').onchange=e=>{if(e.target.value!=='c')K=FIL[e.target.value].slice();tabelaF();processa();};
+function conv(img){const o=new Float32Array(26*26);for(let y=0;y<26;y++)for(let x=0;x<26;x++){let s=0;for(let i=0;i<3;i++)for(let j=0;j<3;j++)s+=K[i*3+j]*img[(y+i)*N+x+j];o[y*26+x]=Math.max(0,s);}return o;}
+function pool(f){const o=new Float32Array(169);for(let y=0;y<13;y++)for(let x=0;x<13;x++)o[y*13+x]=Math.max(f[(2*y)*26+2*x],f[(2*y)*26+2*x+1],f[(2*y+1)*26+2*x],f[(2*y+1)*26+2*x+1]);return o;}
+function processa(){const f=conv(g.img),p=pool(f);let mx=0;f.forEach(v=>mx=Math.max(mx,v));
+ pintar($('#cFm'),f,26,26,{max:mx||1}); pintar($('#cPl'),p,13,13,{max:mx||1});
+ let txt='Regiões escuras no mapa = lugares onde o padrão do filtro aparece. ';
+ if(anterior){let dif=0,base=0;for(let i=0;i<169;i++){dif+=Math.abs(p[i]-anterior[i]);base+=Math.abs(anterior[i]);}
+  txt+=`<br>Após o deslocamento, o mapa de características andou junto com a imagem (equivariância). A saída do pooling mudou <b>${fmt(100*dif/(base||1),0)}%</b> (soma das diferenças absolutas): o pooling atenua, sem eliminar, o efeito do deslocamento. Com deslocamentos de 1 pixel o efeito costuma ser menor.`;anterior=null;}
+ $('#info').innerHTML=txt;}
+tabelaF();exemplo();
+</script>
+</body></html>

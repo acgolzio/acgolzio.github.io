@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 8 · Codificação posicional</title><link rel="stylesheet" href="estilo.css"></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · PLN e Transformers</span></header>
+<main>
+<p class="tag">Atividade 8 · Codificação posicional</p>
+<h1>Senos e cossenos para dizer ao Transformer onde cada palavra está</h1>
+<section class="caixa azul"><h2>Contexto</h2>
+<p>A autoatenção é invariante à ordem: sem informação de posição, "o cão mordeu o homem" e "o homem mordeu o cão" teriam as mesmas representações. A codificação senoidal do Transformer original soma a cada embedding um vetor PE(pos, 2i) = sen(pos/10000<sup>2i/d</sup>) e PE(pos, 2i+1) = cos(pos/10000<sup>2i/d</sup>): cada dimensão oscila numa frequência diferente (VASWANI et al., 2017).</p>
+</section>
+<section class="painel"><h2>1. O mapa de calor</h2>
+<div class="linha"><div class="ctl"><label>d<sub>model</sub> <span class="val" id="vd"></span></label><input type="range" id="d" min="4" max="128" step="4" value="64"></div><div class="ctl"><label>posições <span class="val" id="vn"></span></label><input type="range" id="n" min="5" max="100" value="50"></div></div>
+<canvas id="hm" width="860" height="320"></canvas><p class="muted">Linhas = posições; colunas = dimensões. Vermelho = positivo, azul = negativo. As primeiras dimensões oscilam rápido; as últimas, devagar.</p>
+</section>
+<section class="painel"><h2>2. O exemplo das notas (d<sub>model</sub> = 4)</h2><div id="ex4"></div></section>
+<section class="painel"><h2>3. Posições próximas têm vetores parecidos</h2>
+<div class="ctl"><label>posição de referência <span class="val" id="vref"></span></label><input type="range" id="ref" min="0" max="49" value="10"></div>
+<canvas id="sim" width="860" height="220"></canvas>
+<p class="muted">Produto escalar entre o vetor da posição de referência e os de todas as outras (d<sub>model</sub> do item 1). Ele decai com a distância: a codificação carrega uma noção de "perto" e "longe".</p>
+</section>
+<section class="painel"><h2>4. Somando posição ao significado</h2>
+<input type="text" id="frase" style="width:100%" value="o cão mordeu o homem">
+<div id="soma"></div>
+</section>
+<section class="caixa creme"><h2>Para discutir</h2>
+<ol><li>Para a atenção pura, uma frase é um <b>conjunto</b> de palavras; só a codificação posicional a torna uma <b>sequência</b>. A ordem é parte do significado ou um acréscimo à estrutura?</li>
+<li>As notas listam três famílias: posição fixa (senoidal), aprendida e relativa (como no T5 e no RoPE). Qual delas parece mais próxima da maneira como a sintaxe trata a ordem?</li></ol></section>
+<div class="ref"><p>YADAV, R. <i>Transformer architecture</i>: complete developer study notes. [S. l.: s. n.], [202-]. Seções 2 e 7.</p>
+<p>VASWANI, A. et al. Attention is all you need. In: ADVANCES IN NEURAL INFORMATION PROCESSING SYSTEMS, 30., 2017, Long Beach. <i>Proceedings</i> [...]. Red Hook: Curran Associates, 2017. p. 5998-6008.</p>
+<p>SU, J. et al. RoFormer: enhanced transformer with rotary position embedding. <i>Neurocomputing</i>, v. 568, 127063, 2024.</p></div>
+</main>
+<script src="pln.js"></script>
+<script>
+const PE=(pos,i,d)=>{const k=Math.floor(i/2);const a=pos/Math.pow(10000,2*k/d);return i%2===0?Math.sin(a):Math.cos(a);};
+function hm(){const d=+$('#d').value,n=+$('#n').value;$('#vd').textContent=d;$('#vn').textContent=n;$('#ref').max=n-1;const c=$('#hm').getContext('2d'),W=860,H=320;const cw=W/d,ch=H/n;
+ for(let p=0;p<n;p++)for(let i=0;i<d;i++){const v=PE(p,i,d);const r=v>0?[194,65,59]:[18,59,106];const a=Math.abs(v);c.fillStyle=`rgb(${Math.round(255-(255-r[0])*a)},${Math.round(255-(255-r[1])*a)},${Math.round(255-(255-r[2])*a)})`;c.fillRect(i*cw,p*ch,Math.ceil(cw),Math.ceil(ch));}sim();}
+function ex4(){$('#ex4').innerHTML=tabela(['Posição','PE(0) = sen(pos)','PE(1) = cos(pos)','PE(2) = sen(pos/100)','PE(3) = cos(pos/100)'],[0,1,2,3].map(p=>[p,...[0,1,2,3].map(i=>fmt(PE(p,i,4),2))]))+'<p class="muted">Com d<sub>model</sub> = 4, as dimensões 2 e 3 usam 10000<sup>2/4</sup> = 100. Os valores das posições 0 a 2 conferem com a tabela das notas.</p>';}
+function sim(){const d=+$('#d').value,n=+$('#n').value,r=Math.min(+$('#ref').value,n-1);$('#vref').textContent=r;const v=p=>[...Array(d)].map((_,i)=>PE(p,i,d));const vr=v(r);const s=[...Array(n)].map((_,p)=>v(p).reduce((a,x,i)=>a+x*vr[i],0));
+ const c=$('#sim').getContext('2d'),W=860,H=220;c.fillStyle='#fff';c.fillRect(0,0,W,H);const mx=Math.max(...s),mn=Math.min(...s);const bw=(W-20)/n;s.forEach((x,p)=>{const h=(x-mn)/(mx-mn||1)*(H-30);c.fillStyle=p===r?COR.gold:COR.navy;c.fillRect(10+p*bw,H-15-h,bw-2,h);});c.fillStyle='#6B7280';c.font='12px sans-serif';c.fillText('posição →',W-70,H-2);}
+function soma(){const t=tokenizar($('#frase').value.toLowerCase());const d=4;const e=w=>{const r=rng([...w].reduce((a,ch)=>a*31+ch.charCodeAt(0),7));return [0,1,2,3].map(()=>Math.round((r()*2-1)*100)/100);};
+ $('#soma').innerHTML=tabela(['pos','Token','Embedding (d = 4)','+ PE(pos)','= entrada do Transformer'],t.map((w,p)=>{const E=e(w),Pp=[0,1,2,3].map(i=>PE(p,i,d));return [p,`<span class="tok">${esc(w)}</span>`,'['+E.map(x=>fmt(x)).join('; ')+']','['+Pp.map(x=>fmt(x)).join('; ')+']','<b>['+E.map((x,i)=>fmt(x+Pp[i])).join('; ')+']</b>'];}))+'<p class="muted">Repare: as duas ocorrências de "o" têm o mesmo embedding, mas entradas diferentes depois de somar a posição.</p>';}
+['#d','#n'].forEach(i=>$(i).oninput=hm);$('#ref').oninput=sim;$('#frase').oninput=soma;hm();ex4();soma();
+</script>
+</body></html>

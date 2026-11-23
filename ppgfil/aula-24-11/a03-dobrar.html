@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 3 · Dobrar o espaço</title><link rel="stylesheet" href="estilo.css"></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · Aula de 24/11</span></header>
+<main>
+<p class="tag">Atividade 3 · LeCun, Bengio e Hinton (2015), Fig. 1a</p>
+<h1>Dobrar o espaço: o que faz uma camada oculta</h1>
+<section class="caixa azul"><h2>Contexto</h2>
+<p>Um classificador linear só consegue dividir o espaço com uma reta (um hiperplano). Os autores explicam que as camadas ocultas "distorcem a entrada de modo não linear, para que as categorias se tornem linearmente separáveis pela última camada" (LECUN; BENGIO; HINTON, 2015, p. 438). A Figura 1a do artigo mostra isso com uma rede de 2 entradas, 2 unidades ocultas e 1 saída. Aqui está uma rede assim, já treinada por nós com retropropagação.</p>
+</section>
+<section class="painel">
+<h2>1. Tente separar com uma reta</h2>
+<div class="linha">
+ <div class="centro"><canvas id="c1" width="360" height="300"></canvas></div>
+ <div>
+  <div class="ctl"><label>Ângulo da reta <span class="val" id="va"></span></label><input type="range" id="ang" min="0" max="180" value="90"></div>
+  <div class="ctl"><label>Posição da reta <span class="val" id="vc"></span></label><input type="range" id="off" min="-1.5" max="1.5" step="0.01" value="-0.3"></div>
+  <p>Pontos do lado errado: <span class="grande" id="err"></span> de 120</p>
+  <p class="muted">Consegue chegar a zero? Por que não?</p>
+ </div>
+</div>
+</section>
+<section class="painel">
+<h2>2. Agora veja a rede dobrar o espaço</h2>
+<canvas id="c2" width="620" height="420"></canvas>
+<div class="ctl"><label>Etapa <span class="val" id="vt"></span></label><input type="range" id="t" min="0" max="2" step="0.01" value="0"></div>
+<p class="centro"><button onclick="anima()">&#9654; animar</button> <label><input type="checkbox" id="mostraReta" checked> mostrar a fronteira da saída</label></p>
+<div class="caixa verde" style="margin:0"><p id="explica" style="margin:0"></p></div>
+<p class="muted">Pesos treinados: W = [[−0,81; 0,66], [0,96; 0,59]], b = [0,46; 0,57]; saída: 19,6·y₁ + 18,3·y₂ − 13,9.</p>
+</section>
+<section class="caixa creme"><h2>Para discutir</h2>
+<ol><li>A rede não "descobre regras": ela muda o <b>sistema de coordenadas</b> em que os dados são descritos. Representar é escolher coordenadas?</li>
+<li>No espaço de entrada o problema é "difícil"; no espaço oculto, "fácil". A dificuldade de um problema está nos dados ou na representação?</li>
+<li>Observe que a grade se curva, mas não se rasga: a camada oculta é uma transformação contínua. Que tipo de "semelhança" ela preserva?</li></ol></section>
+<div class="ref"><p>LECUN, Y.; BENGIO, Y.; HINTON, G. Deep learning. <i>Nature</i>, v. 521, n. 7553, p. 436-444, 2015. A Fig. 1a do artigo é reproduzida de C. Olah (colah.github.io); aqui a ideia é recriada com uma rede própria.</p></div>
+</main>
+<script src="comum.js"></script>
+<script>
+const W1=[[-0.8123170205175728,0.6601055914834084],[0.9558008677162846,0.5932928993496003]],b1=[0.4557984460133241,0.5707621373899272],W2=[19.635518387180614,18.331482808036988],b2=-13.851599472883468;
+const A=[],B=[];for(let i=0;i<60;i++){const x=-1+2*i/59;A.push([x,0.8*x*x-0.75]);B.push([x,0.8*x*x+0.05]);}
+// Parte 1
+function parte1(){const th=+$('#ang').value*Math.PI/180,c=+$('#off').value;$('#va').textContent=$('#ang').value+'°';$('#vc').textContent=fmt(c);
+ const cv=$('#c1'),ctx=cv.getContext('2d'),w=cv.width,h=cv.height;ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
+ const sc=110,px=p=>[w/2+p[0]*sc,h/2-p[1]*sc];
+ ctx.strokeStyle='#E5E7EB';for(let g=-1.5;g<=1.5;g+=0.25){let a=px([g,-2]),b=px([g,2]);ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke();a=px([-2,g]);b=px([2,g]);ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke();}
+ const n=[Math.cos(th),Math.sin(th)];const lado=p=>n[0]*p[0]+n[1]*p[1]-c;
+ // conta erros escolhendo a melhor orientação de rótulos
+ let e1=0,e2=0;A.forEach(p=>{lado(p)>0?e1++:e2++;});B.forEach(p=>{lado(p)<0?e1++:e2++;});const err=Math.min(e1,e2),sinal=e1<=e2?1:-1;
+ [...A.map(p=>[p,0]),...B.map(p=>[p,1])].forEach(([p,k])=>{const ok=(k===0? lado(p)*sinal<=0 : lado(p)*sinal>=0);const[x,y]=px(p);ctx.fillStyle=k?COR.verm:COR.navy;ctx.beginPath();ctx.arc(x,y,ok?3:5,0,7);ctx.fill();if(!ok){ctx.strokeStyle=COR.gold;ctx.lineWidth=2;ctx.stroke();}});
+ const d=[-n[1],n[0]],p0=[n[0]*c,n[1]*c];const a=px([p0[0]-3*d[0],p0[1]-3*d[1]]),b=px([p0[0]+3*d[0],p0[1]+3*d[1]]);ctx.strokeStyle=COR.gold;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke();
+ $('#err').textContent=err; $('#err').className='grande '+(err===0?'ok':'erro');}
+$('#ang').oninput=parte1;$('#off').oninput=parte1;parte1();
+// Parte 2
+const grid=[];for(let k=0;k<=12;k++){const v=-1.5+0.25*k;const l1=[],l2=[];for(let s=0;s<=60;s++){const u=-1.5+3*s/60;l1.push([v,u]);l2.push([u,v]);}grid.push(l1,l2);}
+const lin=p=>[W1[0][0]*p[0]+W1[0][1]*p[1]+b1[0],W1[1][0]*p[0]+W1[1][1]*p[1]+b1[1]];
+function T(p,t){if(t<=1){const z=lin(p);return[(1-t)*p[0]+t*z[0],(1-t)*p[1]+t*z[1]];}const z=lin(p),s=t-1;return[(1-s)*z[0]+s*Math.tanh(z[0]),(1-s)*z[1]+s*Math.tanh(z[1])];}
+function parte2(){const t=+$('#t').value;const cv=$('#c2'),ctx=cv.getContext('2d'),w=cv.width,h=cv.height;ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
+ const G=grid.map(l=>l.map(p=>T(p,t)));let mnx=1e9,mxx=-1e9,mny=1e9,mxy=-1e9;G.flat().forEach(([x,y])=>{mnx=Math.min(mnx,x);mxx=Math.max(mxx,x);mny=Math.min(mny,y);mxy=Math.max(mxy,y);});
+ const sc=Math.min((w-40)/(mxx-mnx),(h-40)/(mxy-mny)),cx=(mnx+mxx)/2,cy=(mny+mxy)/2,px=p=>[w/2+(p[0]-cx)*sc,h/2-(p[1]-cy)*sc];
+ ctx.strokeStyle='#D9DEE5';ctx.lineWidth=1;G.forEach(l=>{ctx.beginPath();l.forEach((p,k)=>{const q=px(p);k?ctx.lineTo(...q):ctx.moveTo(...q);});ctx.stroke();});
+ [[A,COR.navy],[B,COR.verm]].forEach(([S,c])=>{ctx.strokeStyle=c;ctx.lineWidth=4;ctx.beginPath();S.forEach((p,k)=>{const q=px(T(p,t));k?ctx.lineTo(...q):ctx.moveTo(...q);});ctx.stroke();});
+ if($('#mostraReta').checked){ // fronteira: W2·T(p,2)+b2=0 aproximada: desenha conjunto de nível no espaço atual por amostragem
+  ctx.fillStyle=COR.gold;for(let i=0;i<=160;i++)for(let j=0;j<=160;j++){const p=[-1.5+3*i/160,-1.5+3*j/160];const z=lin(p);const o=W2[0]*Math.tanh(z[0])+W2[1]*Math.tanh(z[1])+b2;if(Math.abs(o)<0.25){const q=px(T(p,t));ctx.fillRect(q[0]-1,q[1]-1,2.2,2.2);}}}
+ let ex,et;if(t<0.05){et='Espaço de entrada';ex='As duas curvas estão encaixadas: nenhuma reta as separa. A linha dourada é a fronteira que a rede treinada usa: no espaço de entrada ela é <b>curva</b>.';}
+ else if(t<=1){et='Etapa linear z = Wx + b';ex='Primeiro a camada oculta faz uma combinação linear: gira, estica e inclina a grade, mas retas continuam retas. Isso sozinho não resolve.';}
+ else if(t<1.95){et='Aplicando a não linearidade tanh';ex='Agora a tangente hiperbólica comprime as regiões extremas: o espaço se <b>dobra</b>.';}
+ else{et='Espaço oculto y = tanh(Wx + b)';ex='No espaço da camada oculta a fronteira virou uma <b>reta</b>: a última camada só precisa de um classificador linear.';}
+ $('#vt').textContent=et;$('#explica').innerHTML=ex;}
+$('#t').oninput=parte2;$('#mostraReta').onchange=parte2;parte2();
+function anima(){let t=0;$('#t').value=0;const id=setInterval(()=>{t+=0.02;$('#t').value=Math.min(2,t);parte2();if(t>=2)clearInterval(id);},40);}
+</script>
+</body></html>

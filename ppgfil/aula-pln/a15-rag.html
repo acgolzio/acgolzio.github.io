@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 15 · Simulador de RAG</title><link rel="stylesheet" href="estilo.css"></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · PLN e Transformers</span></header>
+<main>
+<p class="tag">Atividade 15 · Geração aumentada por recuperação</p>
+<h1>Simulador de RAG: dividir, indexar, recuperar, montar o prompt e responder com fontes</h1>
+<section class="caixa azul"><h2>Contexto</h2>
+<p>O RAG combina recuperação de informação e geração: em vez de confiar só no que o modelo aprendeu no pré-treino, o sistema busca trechos relevantes numa base de conhecimento e os coloca no prompt. Isso ajuda a produzir respostas mais atuais, específicas e com citações (LEWIS et al., 2020). Pipeline: carregar documentos → dividir em pedaços (chunks) → gerar embeddings → guardar num banco vetorial → recuperar os top-k pedaços → montar o prompt → gerar a resposta.</p>
+<p class="muted"><b>Simplificações desta simulação:</b> usamos vetores TF-IDF (com radicalização) no lugar de um modelo neural de embeddings, e a "geração" apenas extrai a frase mais relevante do contexto. Um sistema real enviaria o prompt montado a um LLM.</p>
+</section>
+<section class="painel"><h2>1. Base de conhecimento</h2><details><summary>ver os 8 documentos</summary><div id="docs"></div></details></section>
+<section class="painel"><h2>2. Divisão em pedaços (chunking)</h2>
+<div class="linha"><div><label>Estratégia</label><br><select id="est"><option value="fixo">tamanho fixo (em palavras)</option><option value="frase">por frase (respeita a estrutura)</option></select></div>
+<div class="ctl"><label>tamanho <span class="val" id="vt"></span></label><input type="range" id="tam" min="8" max="60" value="25"></div><div class="ctl"><label>sobreposição <span class="val" id="vs"></span></label><input type="range" id="sob" min="0" max="15" value="5"></div></div>
+<div id="chunks"></div>
+</section>
+<section class="painel"><h2>3. Pergunte</h2>
+<input type="text" id="q" style="width:100%" value="Quem propôs o RAG e para que ele serve?">
+<p><button class="sec" onclick="pq('Como o BERT é pré-treinado?')">Como o BERT é pré-treinado?</button><button class="sec" onclick="pq('Quantos parâmetros tem a LeNet-5?')">Quantos parâmetros tem a LeNet-5?</button><button class="sec" onclick="pq('Qual é a capital da Noruega?')">Qual é a capital da Noruega?</button></p>
+<div class="linha"><div class="ctl"><label>top-k <span class="val" id="vk"></span></label><input type="range" id="k" min="1" max="5" value="2"></div><div class="ctl"><label>limiar mínimo de semelhança <span class="val" id="vl"></span></label><input type="range" id="lim" min="0" max="0.5" step="0.01" value="0.12"></div></div>
+<h3>Pedaços recuperados</h3><div id="rec"></div>
+<h3>Prompt montado (modelo das notas)</h3><pre id="prompt"></pre>
+<h3>Resposta</h3><div id="resp" class="revela"></div>
+</section>
+<section class="caixa creme"><h2>Para discutir</h2>
+<ol><li>No RAG, o modelo passa a responder com base em documentos que pode citar. Isso o aproxima da justificação epistêmica, ou apenas desloca a confiança para quem escolheu a base de documentos?</li>
+<li>Pergunte "Qual é a capital da Noruega?": a base não sabe. Um sistema que diz "não sei" é mais confiável do que um que sempre responde? O que isso tem a ver com a noção de alucinação?</li></ol></section>
+<div class="ref"><p>YADAV, R. <i>Transformer architecture</i>: complete developer study notes. [S. l.: s. n.], [202-]. Seção 18. YADAV, R. <i>NLP</i>: complete developer study notes. [S. l.: s. n.], [202-]. Seção 14.</p>
+<p>LEWIS, P. et al. Retrieval-augmented generation for knowledge-intensive NLP tasks. In: NEURIPS, 33., 2020. <i>Proceedings</i> [...]. Red Hook: Curran Associates, 2020. p. 9459-9474.</p>
+<p>KARPUKHIN, V. et al. Dense passage retrieval for open-domain question answering. In: EMNLP, 2020. <i>Proceedings</i> [...]. Stroudsburg: ACL, 2020. p. 6769-6781.</p></div>
+</main>
+<script src="pln.js"></script>
+<script>
+const DOCS=[['transformer.pdf','O Transformer foi apresentado em 2017 no artigo Attention Is All You Need, de Vaswani e colegas, no Google. Ele dispensa a recorrência e a convolução e usa apenas mecanismos de atenção. Por isso processa todos os tokens em paralelo e lida bem com dependências longas.'],
+['bert.pdf','O BERT foi publicado em 2018 por Devlin e colegas. É um modelo só codificador, pré-treinado com modelagem de linguagem mascarada: palavras escondidas com o token [MASK] são previstas usando o contexto dos dois lados. Depois, o BERT é ajustado para tarefas como classificação e reconhecimento de entidades.'],
+['gpt.pdf','Os modelos GPT são só decodificadores. Eles são pré-treinados para prever o próximo token usando apenas o contexto à esquerda e geram texto um token por vez, com estratégias de decodificação como gulosa, top-k e top-p.'],
+['rag.pdf','O RAG, geração aumentada por recuperação, foi proposto por Lewis e colegas em 2020. Ele recupera trechos relevantes de uma base de conhecimento e os insere no prompt do modelo de linguagem. Isso reduz alucinações, permite usar dados privados e atualizados e possibilita citar as fontes da resposta.'],
+['lenet.pdf','A LeNet-5, descrita por LeCun e colegas em 1998, é uma rede convolucional com sete camadas treináveis e cerca de 60 mil parâmetros livres. Ela foi usada num sistema comercial de leitura de cheques bancários nos Estados Unidos.'],
+['disciplina.pdf','A disciplina PPF0021 do Programa de Pós-Graduação em Filosofia da Unesp, em Marília, discute a inteligência artificial generativa numa perspectiva filosófico-interdisciplinar.'],
+['bm25.pdf','O BM25 é um modelo probabilístico de recuperação de informação que melhora o TF-IDF com saturação da frequência dos termos e normalização pelo tamanho do documento. Valores típicos dos parâmetros: k1 entre 1,2 e 2,0 e b igual a 0,75. É usado em buscadores como o Elasticsearch.'],
+['word2vec.pdf','O Word2Vec, de Mikolov e colegas, foi publicado em 2013. Ele aprende embeddings de palavras com uma rede neural rasa, em duas arquiteturas: CBOW, que prevê a palavra a partir do contexto, e skip-gram, que prevê as palavras do contexto a partir da palavra central.']];
+$('#docs').innerHTML=DOCS.map(([n,t])=>`<p><b>${n}</b>: ${esc(t)}</p>`).join('');
+const prep=t=>tokenizar(t.toLowerCase()).filter(w=>!STOP.pt.has(w)).map(radicalPT);
+let CH=[],VV=[],IX={},IDF=[],VEC=[];
+function chunk(){const est=$('#est').value,tam=+$('#tam').value,sob=Math.min(+$('#sob').value,tam-1);$('#vt').textContent=tam+' palavras';$('#vs').textContent=sob;CH=[];
+ DOCS.forEach(([n,t])=>{if(est==='fixo'){const w=t.split(/\s+/);for(let i=0,k=1;i<w.length;i+=tam-sob,k++){CH.push({doc:n,id:k,txt:w.slice(i,i+tam).join(' ')});if(i+tam>=w.length)break;}}else{t.split(/(?<=\.)\s+/).forEach((s,k)=>CH.push({doc:n,id:k+1,txt:s}));}});
+ const toks=CH.map(c=>prep(c.txt));({V:VV,idx:IX}=vocabularioDe(toks));const N=CH.length;const df=VV.map((w,j)=>toks.filter(t=>t.includes(w)).length);IDF=df.map(x=>Math.log(N/x)+1);VEC=toks.map(t=>VV.map((w,j)=>t.filter(x=>x===w).length*IDF[j]));
+ $('#chunks').innerHTML=`<p>${CH.length} pedaços, cada um guardado com metadados (documento, número do pedaço).</p><details><summary>ver pedaços</summary>${tabela(['Documento','Pedaço','Texto'],CH.map(c=>[c.doc,c.id,esc(c.txt)]))}</details>`;busca();}
+function pq(t){$('#q').value=t;busca();}
+function busca(){const k=+$('#k').value,lim=+$('#lim').value;$('#vk').textContent=k;$('#vl').textContent=fmt(lim,2);const qt=prep($('#q').value);const qv=VV.map((w,j)=>qt.filter(x=>x===w).length*IDF[j]);
+ const r=CH.map((c,i)=>({c,s:cosseno(qv,VEC[i])})).sort((a,b)=>b.s-a.s).slice(0,k);
+ $('#rec').innerHTML=tabela(['#','Fonte','Semelhança (cosseno)','Trecho'],r.map((x,i)=>[i+1,`${x.c.doc} #${x.c.id}`,`<b>${fmt(x.s,3)}</b>`,esc(x.c.txt)]));
+ const ctx=r.filter(x=>x.s>=lim).map(x=>`[${x.c.doc} #${x.c.id}] ${x.c.txt}`).join('\n');
+ $('#prompt').textContent=`Use o contexto a seguir para responder à pergunta.\nSe a resposta não estiver no contexto, diga "Não sei".\n\nContexto:\n${ctx||'(nenhum trecho acima do limiar)'}\n\nPergunta: ${$('#q').value}\n\nResposta:`;
+ if(!ctx){$('#resp').innerHTML='<b>Não sei.</b> <span class="muted">Nenhum trecho recuperado é suficientemente parecido com a pergunta. Seguindo o modelo de prompt, o sistema se recusa a inventar.</span>';return;}
+ let best=null;r.filter(x=>x.s>=lim).forEach(x=>x.c.txt.split(/(?<=\.)\s+/).forEach(f=>{const ft=prep(f);const sc=qt.filter(w=>ft.includes(w)).length/Math.sqrt(ft.length+1);if(!best||sc>best.sc)best={f,sc,src:x.c};}));
+ $('#resp').innerHTML=`<b>${esc(best.f)}</b><br><span class="muted">Fonte: ${best.src.doc}, pedaço ${best.src.id}. A resposta foi extraída do contexto, por isso é fiel a ele por construção; um LLM reescreveria com as próprias palavras, e aí seria preciso avaliar a fidelidade.</span>`;}
+['#tam','#sob'].forEach(i=>$(i).oninput=chunk);$('#est').onchange=chunk;['#q','#k','#lim'].forEach(i=>$(i).oninput=busca);chunk();
+</script>
+</body></html>

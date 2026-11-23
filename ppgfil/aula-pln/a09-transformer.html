@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 9 · Monte um Transformer</title><link rel="stylesheet" href="estilo.css"></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · PLN e Transformers</span></header>
+<main>
+<p class="tag">Atividade 9 · Arquitetura Transformer</p>
+<h1>Monte um Transformer: cabeças, camadas, formatos e parâmetros</h1>
+<section class="caixa azul"><h2>Contexto</h2>
+<p>Uma camada Transformer = atenção de múltiplas cabeças + Add &amp; Norm + rede feed-forward + Add &amp; Norm. A entrada e a saída de cada camada têm o mesmo formato (n × d<sub>model</sub>), por isso as camadas podem ser empilhadas N vezes. Com h cabeças, cada uma trabalha em d<sub>k</sub> = d<sub>model</sub>/h dimensões; as saídas são concatenadas e projetadas por W<sup>O</sup> (VASWANI et al., 2017; DEVLIN et al., 2019).</p>
+</section>
+<section class="painel"><h2>1. Configure</h2>
+<p><button class="sec" onclick="preset('bert')">BERT-base</button><button class="sec" onclick="preset('gpt2')">GPT-2 pequeno</button><button class="sec" onclick="preset('orig')">Transformer original (base)</button></p>
+<div class="linha">
+<div><label>Arquitetura</label><br><select id="arq"><option value="enc">só codificador (BERT)</option><option value="dec">só decodificador (GPT)</option><option value="encdec">codificador-decodificador (T5, original)</option></select></div>
+<div><label>vocabulário V</label><br><input type="number" id="V" value="30522"></div><div><label>d<sub>model</sub></label><br><input type="number" id="d" value="768"></div><div><label>cabeças h</label><br><input type="number" id="h" value="12"></div><div><label>d<sub>ff</sub></label><br><input type="number" id="ff" value="3072"></div><div><label>camadas N</label><br><input type="number" id="L" value="12"></div><div><label>contexto máximo</label><br><input type="number" id="ctx" value="512"></div>
+<div><label>posição</label><br><select id="pos"><option value="apr">aprendida</option><option value="sen">senoidal (sem parâmetros)</option></select></div></div>
+<div id="dims"></div>
+</section>
+<section class="painel"><h2>2. Contagem de parâmetros</h2><div id="params"></div></section>
+<section class="painel"><h2>3. Formatos ao longo de uma camada</h2><input type="text" id="frase" style="width:100%" value="o modelo lê a frase inteira de uma vez"><div id="shapes"></div></section>
+<section class="painel"><h2>4. Máscara causal do decodificador</h2><p class="muted">No decodificador, cada posição só pode atender às anteriores (e a si mesma): o modelo não pode "espiar" as palavras que ainda vai gerar.</p><div id="mask"></div></section>
+<section class="caixa creme"><h2>Para discutir</h2>
+<ol><li>O BERT-base tem cerca de 110 milhões de parâmetros; cerca de 1/5 deles fica só na tabela de embeddings. Onde "está" o conhecimento de um modelo: nos pesos da atenção, nas FFN, nos embeddings, ou em lugar nenhum em particular?</li>
+<li>Codificador lê nos dois sentidos; decodificador só olha para trás. Compreender e produzir linguagem exigem arquiteturas diferentes?</li></ol></section>
+<div class="ref"><p>YADAV, R. <i>Transformer architecture</i>: complete developer study notes. [S. l.: s. n.], [202-]. Seções 6, 8 e 10.</p>
+<p>VASWANI, A. et al. Attention is all you need. In: NIPS, 30., 2017. <i>Proceedings</i> [...]. Red Hook: Curran Associates, 2017. p. 5998-6008.</p>
+<p>DEVLIN, J. et al. BERT: pre-training of deep bidirectional transformers for language understanding. In: NAACL-HLT, 2019, Minneapolis. <i>Proceedings</i> [...]. Stroudsburg: ACL, 2019. p. 4171-4186.</p>
+<p>RADFORD, A. et al. <i>Language models are unsupervised multitask learners</i>. San Francisco: OpenAI, 2019.</p></div>
+</main>
+<script src="pln.js"></script>
+<script>
+const PR={bert:{arq:'enc',V:30522,d:768,h:12,ff:3072,L:12,ctx:512,pos:'apr'},gpt2:{arq:'dec',V:50257,d:768,h:12,ff:3072,L:12,ctx:1024,pos:'apr'},orig:{arq:'encdec',V:37000,d:512,h:8,ff:2048,L:6,ctx:512,pos:'sen'}};
+let atual='bert';
+function preset(k){atual=k;const p=PR[k];for(const [a,v] of Object.entries(p))$('#'+a).value=v;roda();}
+const n3=x=>Math.round(x).toLocaleString('pt-BR');
+function roda(){const g=id=>+$('#'+id).value;const V=g('V'),d=g('d'),h=g('h'),ff=g('ff'),L=g('L'),ctx=g('ctx'),arq=$('#arq').value,pos=$('#pos').value;const dk=d/h;
+ $('#dims').innerHTML=`<p class="revela">d<sub>k</sub> = d<sub>v</sub> = d<sub>model</sub>/h = ${d}/${h} = <b>${Number.isInteger(dk)?dk:fmt(dk,2)}</b>${Number.isInteger(dk)?'':' <span class="erro">(d<sub>model</sub> deveria ser divisível por h)</span>'}. Cada cabeça produz n × ${fmt(dk,0)}; concatenando ${h} cabeças: n × ${fmt(h*dk,0)} = n × d<sub>model</sub>.</p>`;
+ const mha=4*(d*d+d),ffn=2*d*ff+ff+d,ln=2*d;const enc=mha+ffn+2*ln,decSelf=mha+ffn+2*ln,decX=2*mha+ffn+3*ln;
+ const emb=V*d,posP=pos==='apr'?ctx*d:0,extra=(atual==='bert'&&arq==='enc')?2*d+ln+(d*d+d):0;
+ let linhas=[['Embeddings de tokens (V × d)',n3(emb)],['Embeddings de posição',pos==='apr'?n3(posP):'0 (senoidal)']];let total=emb+posP;
+ if(arq==='enc'){linhas.push([`${L} camadas de codificador × ${n3(enc)}`,n3(L*enc)]);total+=L*enc;if(extra){linhas.push(['Segmentos, LayerNorm dos embeddings e pooler (específicos do BERT)',n3(extra)]);total+=extra;}}
+ if(arq==='dec'){linhas.push([`${L} camadas de decodificador (atenção mascarada) × ${n3(decSelf)}`,n3(L*decSelf)],['LayerNorm final',n3(ln)]);total+=L*decSelf+ln;}
+ if(arq==='encdec'){linhas.push([`${L} camadas de codificador × ${n3(enc)}`,n3(L*enc)],[`${L} camadas de decodificador (com atenção cruzada) × ${n3(decX)}`,n3(L*decX)]);total+=L*enc+L*decX;}
+ linhas.push(['Camada de saída (pesos compartilhados com os embeddings)','0']);
+ $('#params').innerHTML=tabela(['Bloco','Parâmetros'],linhas.concat([['<b>Total</b>',`<b>${n3(total)} (≈ ${fmt(total/1e6,1)} milhões)</b>`]]))+
+ `<div class="linha"><div>${tabela(['Dentro de uma camada','Fórmula','Parâmetros'],[['Atenção (W<sub>Q</sub>, W<sub>K</sub>, W<sub>V</sub>, W<sup>O</sup> + vieses)','4(d² + d)',n3(mha)],['Feed-forward (d → d<sub>ff</sub> → d)','2·d·d<sub>ff</sub> + d<sub>ff</sub> + d',n3(ffn)],['Cada LayerNorm','2d',n3(ln)]])}</div></div>
+ <p class="muted">Referências: BERT-base ≈ 110 milhões (DEVLIN et al., 2019); GPT-2 pequeno ≈ 124 milhões; Transformer base ≈ 65 milhões (VASWANI et al., 2017). Pequenas diferenças vêm de detalhes de implementação.</p>`;
+ const t=tokenizar($('#frase').value);const n=t.length;
+ $('#shapes').innerHTML=tabela(['Etapa','Formato'],[['Tokens',`${n} tokens`],['Embeddings + posição',`${n} × ${d}`],['Q, K, V de cada cabeça (X·W<sub>i</sub>)',`${n} × ${fmt(dk,0)} (× ${h} cabeças)`],['Escores QKᵀ de cada cabeça',`${n} × ${n}`],['Saída de cada cabeça',`${n} × ${fmt(dk,0)}`],['Concatenação das cabeças',`${n} × ${fmt(h*dk,0)}`],['Projeção W<sup>O</sup>, Add &amp; Norm',`${n} × ${d}`],['FFN: primeira linear + ReLU',`${n} × ${ff}`],['FFN: segunda linear, Add &amp; Norm',`${n} × ${d}`]]);
+ const tk=t.slice(0,10);$('#mask').innerHTML=`<div class="scroll"><table style="width:auto"><tr><th></th>${tk.map(w=>`<th>${esc(w)}</th>`).join('')}</tr>${tk.map((w,i)=>`<tr><th>${esc(w)}</th>${tk.map((_,j)=>j<=i?'<td style="background:#EEF2F7;color:#123B6A">✓</td>':'<td style="background:#FBEAEA;color:#C2413B">−∞</td>').join('')}</tr>`).join('')}</table></div>`;}
+['#V','#d','#h','#ff','#L','#ctx','#frase'].forEach(i=>$(i).oninput=()=>{roda();});['#arq','#pos'].forEach(i=>$(i).onchange=()=>{atual='';roda();});preset('bert');
+</script>
+</body></html>

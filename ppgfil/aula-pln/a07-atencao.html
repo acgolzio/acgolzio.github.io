@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 7 · Calculadora de autoatenção</title><link rel="stylesheet" href="estilo.css"></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · PLN e Transformers</span></header>
+<main>
+<p class="tag">Atividade 7 · Atenção</p>
+<h1>Calculadora de autoatenção: Q, K, V passo a passo</h1>
+<section class="caixa azul"><h2>Contexto</h2>
+<p>Cada token produz uma <b>consulta</b> (Query: o que procuro), uma <b>chave</b> (Key: com o que posso ser comparado) e um <b>valor</b> (Value: a informação que entrego). A atenção por produto escalar escalado é Atenção(Q, K, V) = softmax(QKᵀ/√d<sub>k</sub>)V: os escores QKᵀ medem semelhança, a divisão por √d<sub>k</sub> evita valores grandes, a softmax transforma cada linha em pesos que somam 1, e a saída é uma média ponderada dos valores (VASWANI et al., 2017).</p>
+</section>
+<section class="painel"><h2>1. Escolha um exemplo</h2>
+<select id="preset" style="width:100%">
+<option value="p4">Notas sobre Transformers, p. 4: tokens [I, love, AI]</option>
+<option value="p5">Notas sobre Transformers, p. 5: Q, K, V gerados a partir de X</option>
+<option value="p6">Notas sobre Transformers, p. 6: exemplo com V = [[2,0],[0,2],[1,1]]</option>
+<option value="n8">Notas de PLN, p. 8-9: exemplo com V = [[1,2],[2,0],[0,1]]</option>
+<option value="livre">Livre: edite as matrizes</option></select>
+<div id="nota" class="caixa verde" style="margin-top:.6rem"></div>
+<div id="modoX" class="oculto"><h3>Embeddings de entrada X e matrizes de projeção</h3><div class="linha"><div><label>X (n × d<sub>model</sub>)</label><textarea id="X" style="min-height:7rem"></textarea></div><div><label>W<sub>Q</sub></label><textarea id="WQ" style="min-height:7rem"></textarea></div><div><label>W<sub>K</sub></label><textarea id="WK" style="min-height:7rem"></textarea></div><div><label>W<sub>V</sub></label><textarea id="WV" style="min-height:7rem"></textarea></div></div></div>
+<div class="linha"><div><label>Tokens</label><input type="text" id="toks" style="width:100%"></div></div>
+<div class="linha"><div><label>Q (n × d<sub>k</sub>)</label><textarea id="Q" style="min-height:7rem"></textarea></div><div><label>K (n × d<sub>k</sub>)</label><textarea id="K" style="min-height:7rem"></textarea></div><div><label>V (n × d<sub>v</sub>)</label><textarea id="V" style="min-height:7rem"></textarea></div></div>
+<p class="muted">Uma linha por token; números separados por espaço.</p>
+<div class="linha" style="gap:.6rem"><label><input type="checkbox" id="esc" checked> dividir por √d<sub>k</sub></label><label><input type="checkbox" id="mask"> máscara causal (decodificador)</label></div>
+</section>
+<section class="painel"><h2>2. As contas</h2><div id="out"></div></section>
+<section class="caixa creme"><h2>Para discutir</h2>
+<ol><li>"Atenção" é uma metáfora: aqui ela é uma média ponderada calculada por semelhança de vetores. O vocabulário psicológico (atenção, memória, consulta) ajuda ou atrapalha a compreender o que a máquina faz?</li>
+<li>Na autoatenção, cada palavra é redefinida pelas outras da frase. Isso lembra alguma concepção holista do significado (o sentido de uma parte depende do todo)?</li></ol></section>
+<div class="ref"><p>YADAV, R. <i>Transformer architecture</i>: complete developer study notes. [S. l.: s. n.], [202-]. Seções 3 a 5. YADAV, R. <i>NLP</i>: complete developer study notes. [S. l.: s. n.], [202-]. Seções 7 e 8.</p>
+<p>VASWANI, A. et al. Attention is all you need. In: ADVANCES IN NEURAL INFORMATION PROCESSING SYSTEMS, 30., 2017, Long Beach. <i>Proceedings</i> [...]. Red Hook: Curran Associates, 2017. p. 5998-6008.</p></div>
+</main>
+<script src="pln.js"></script>
+<script>
+const P={
+ p4:{toks:'I love AI',Q:'1 0\n0 1\n1 1',K:'1 0\n0 1\n1 0',V:'1 0\n0 1\n1 1',esc:false,nota:'Nas notas, a softmax é aplicada <b>sem</b> a divisão por √d<sub>k</sub>, embora d<sub>k</sub> = 2. Mesmo assim, a linha de "love" está errada nas notas: softmax([0, 1, 0]) = [0,21; 0,58; 0,21], e não [0,16; 0,68; 0,16]. Marque a caixa "dividir por √d<sub>k</sub>" para ver o cálculo completo. As notas não dão V; usamos um V ilustrativo.'},
+ p5:{X:'1 0 1 0\n0 1 1 0\n1 1 0 1',WQ:'1 0\n0 1\n1 0\n0 1',WK:'1 1\n0 1\n1 0\n0 1',WV:'0 1\n1 0\n0 1\n1 0',toks:'t1 t2 t3',esc:true,nota:'Aqui Q = XW<sub>Q</sub>, K = XW<sub>K</sub> e V = XW<sub>V</sub> são calculados a partir de X. <b>Correção:</b> as notas trazem a 1ª linha de Q como [2, 1] (o correto é [2, 0]), a 3ª linha de K como [1, 2] (o correto é [1, 3]) e V = [[0,1],[1,0],[1,1]] (o correto é [[0,2],[1,1],[2,1]]).'},
+ p6:{toks:'t1 t2 t3',Q:'1 0\n0 1\n1 1',K:'1 0\n0 1\n1 1',V:'2 0\n0 2\n1 1',esc:true,nota:'Os pesos de atenção das notas estão certos. <b>Correção:</b> a saída correta é [[1,20; 0,80], [0,80; 1,20], [1,00; 1,00]]; as notas trazem 0,60 no lugar de 0,80 nas duas primeiras linhas.'},
+ n8:{toks:'t1 t2 t3',Q:'1 0\n0 1\n1 1',K:'1 0\n0 1\n1 1',V:'1 2\n2 0\n0 1',esc:true,nota:'<b>Correção:</b> nas notas de PLN (p. 8), a 3ª linha de QKᵀ aparece como [2, 1, 2]; o correto é [1, 1, 2] (os pesos [0,25; 0,25; 0,50] já usam o valor certo). A saída correta é [[0,80; 1,20], [1,00; 0,80], [0,75; 1,00]]; as notas trazem [[0,80; 1,00], [1,20; 0,60], [0,75; 1,00]].'},
+ livre:{toks:'o gato subiu no telhado',Q:'1 0\n0 1\n1 1\n0 0\n1 0',K:'1 0\n0 1\n1 1\n0 0\n1 0',V:'1 0\n0 1\n1 1\n0 0\n1 0',esc:true,nota:'Edite à vontade. Experimente aumentar todos os números de Q e K (escores grandes deixam a softmax quase "dura", com um peso perto de 1).'}};
+const le=t=>t.trim().split('\n').filter(l=>l.trim()).map(l=>l.trim().split(/[\s;,]+/).map(Number));
+function carrega(){const p=P[$('#preset').value];$('#nota').innerHTML=p.nota;$('#toks').value=p.toks;$('#esc').checked=p.esc;$('#mask').checked=false;
+ if(p.X){$('#modoX').classList.remove('oculto');$('#X').value=p.X;$('#WQ').value=p.WQ;$('#WK').value=p.WK;$('#WV').value=p.WV;deX();}else{$('#modoX').classList.add('oculto');$('#Q').value=p.Q;$('#K').value=p.K;$('#V').value=p.V;}roda();}
+function deX(){const X=le($('#X').value);const f=M=>M.map(r=>r.join(' ')).join('\n');$('#Q').value=f(matmul(X,le($('#WQ').value)));$('#K').value=f(matmul(X,le($('#WK').value)));$('#V').value=f(matmul(X,le($('#WV').value)));}
+function roda(){try{const Q=le($('#Q').value),K=le($('#K').value),V=le($('#V').value);const t=$('#toks').value.trim().split(/\s+/);const n=Q.length,dk=Q[0].length;const tk=Q.map((_,i)=>t[i]||('t'+(i+1)));
+ const S=matmul(Q,transp(K));const s=$('#esc').checked?Math.sqrt(dk):1;let Sc=S.map(r=>r.map(v=>v/s));if($('#mask').checked)Sc=Sc.map((r,i)=>r.map((v,j)=>j>i?-Infinity:v));
+ const A=Sc.map(r=>softmaxLinha(r));const O=matmul(A,V);
+ const mostra=M=>M.map(r=>r.map(v=>v===-Infinity?'−∞':fmt(v,2)));
+ $('#out').innerHTML=`<h3>Passo 1: escores QKᵀ (semelhança entre consultas e chaves)</h3>${matrizHTML(S,tk,tk,2)}
+ <h3>Passo 2: ${$('#esc').checked?`escala: dividir por √d<sub>k</sub> = √${dk} = ${fmt(s,2)}`:'sem escala'}${$('#mask').checked?' e máscara causal (−∞ acima da diagonal)':''}</h3>${tabela(['',...tk],mostra(Sc).map((r,i)=>[tk[i],...r]))}
+ <h3>Passo 3: softmax por linha = pesos de atenção (cada linha soma 1)</h3>${matrizHTML(A,tk,tk,2,1)}
+ <h3>Passo 4: saída = pesos × V (cada token vira uma média ponderada dos valores)</h3>${matrizHTML(O,tk,[...Array(V[0].length)].map((_,j)=>'dim '+(j+1)),2)}
+ <p class="revela">Exemplo de leitura: o token <b>${esc(tk[0])}</b> distribui sua atenção assim: ${A[0].map((a,j)=>`${esc(tk[j])} ${fmt(100*a,0)}%`).join(', ')}.</p>`;}catch(e){$('#out').innerHTML='<p class="erro">Verifique as dimensões das matrizes.</p>';}}
+$('#preset').onchange=carrega;['#Q','#K','#V','#toks'].forEach(i=>$(i).oninput=roda);['#X','#WQ','#WK','#WV'].forEach(i=>$(i).oninput=()=>{deX();roda();});['#esc','#mask'].forEach(i=>$(i).onchange=roda);carrega();
+</script>
+</body></html>

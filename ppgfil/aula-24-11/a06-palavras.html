@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atividade 6 · Símbolos ou vetores?</title><link rel="stylesheet" href="estilo.css"></head>
+<body>
+<header class="topo"><a href="index.html">&#8592; Atividades</a><span>PPGFIL Unesp · Aula de 24/11</span></header>
+<main>
+<p class="tag">Atividade 6 · LeCun, Bengio e Hinton (2015), p. 440-441</p>
+<h1>Símbolos ou vetores? Brincando com representações distribuídas</h1>
+<section class="caixa azul"><h2>Contexto</h2>
+<p>No paradigma inspirado na lógica, um símbolo só tem uma propriedade relevante: ser idêntico ou não a outro símbolo. Nas redes neurais, cada palavra vira um <b>vetor de características</b> aprendido; palavras semanticamente próximas ficam próximas no espaço (no artigo, "terça" perto de "quarta", "Suécia" perto de "Noruega"). Com <i>n</i> características binárias há 2<sup>n</sup> combinações possíveis: é a vantagem combinatória das representações distribuídas (LECUN; BENGIO; HINTON, 2015, p. 440-441).</p>
+<p class="muted">Atenção: os vetores abaixo são <b>de brinquedo</b>, com características escolhidas por nós e legíveis. Numa rede real as características são aprendidas e, em geral, não têm nomes.</p>
+</section>
+<section class="painel">
+<h2>1. Codificação "um entre N" (one-hot) contra codificação distribuída</h2>
+<div class="linha"><div><label>Palavra A</label><br><select id="pA"></select></div><div><label>Palavra B</label><br><select id="pB"></select></div></div>
+<div id="tabVet" style="overflow-x:auto;margin-top:.6rem"></div>
+<div class="linha"><div><p>Semelhança (cosseno) com <b>one-hot</b>: <span class="grande" id="s1"></span></p></div><div><p>Semelhança (cosseno) com vetores <b>distribuídos</b>: <span class="grande" id="s2"></span></p></div></div>
+<p class="muted">No one-hot, palavras diferentes são sempre ortogonais (semelhança 0): "terça" está tão longe de "quarta" quanto de "lobo". Nada se generaliza de uma para a outra.</p>
+</section>
+<section class="painel">
+<h2>2. Vizinhos no espaço de vetores</h2>
+<label>Palavra</label> <select id="pV"></select>
+<ol id="viz"></ol>
+</section>
+<section class="painel">
+<h2>3. Aritmética de vetores (ilustração)</h2>
+<p><select id="a1"></select> − <select id="a2"></select> + <select id="a3"></select> ≈ <span class="grande" id="ares"></span></p>
+<p class="muted">Nos vetores de brinquedo isso funciona por construção. Em modelos treinados, regularidades desse tipo podem emergir do aprendizado; os autores falam de "micro-regras" descobertas pela rede (LECUN; BENGIO; HINTON, 2015, p. 441).</p>
+</section>
+<section class="painel">
+<h2>4. A explosão dos N-gramas</h2>
+<div class="linha"><div><div class="ctl"><label>Tamanho do vocabulário V <span class="val" id="vV"></span></label><input type="range" id="V" min="3" max="6" step="1" value="5"></div>
+<div class="ctl"><label>Contexto de N palavras <span class="val" id="vN"></span></label><input type="range" id="N" min="1" max="8" value="3"></div></div>
+<div><p>Sequências possíveis V<sup>N</sup>: <span class="grande" id="vn"></span></p><p class="muted">Um modelo de N-gramas trata cada palavra como átomo e precisa ver as sequências para estimá-las. Com mais de umas poucas palavras de contexto, os dados nunca bastam.</p></div></div>
+<div class="ctl"><label>Com n características binárias, quantos padrões distintos? n = <span class="val" id="vnn"></span></label><input type="range" id="nn" min="1" max="40" value="10"></div>
+<p>2<sup>n</sup> = <span class="grande" id="dn"></span></p>
+</section>
+<section class="caixa creme"><h2>Para discutir</h2>
+<ol><li>Fodor e Pylyshyn (1988) argumentaram que o pensamento exige símbolos com estrutura composicional, algo que redes conexionistas não teriam. O texto de 2015 responde que vetores grandes permitem uma inferência rápida e "intuitiva". Os vetores tornam dispensáveis os símbolos, ou apenas os implementam?</li>
+<li>Se o significado de "terça" é sua posição relativa entre as outras palavras, ele é algo como um uso (ou distribuição) da palavra. O que fica de fora dessa concepção de significado?</li></ol></section>
+<div class="ref"><p>LECUN, Y.; BENGIO, Y.; HINTON, G. Deep learning. <i>Nature</i>, v. 521, n. 7553, p. 436-444, 2015.</p>
+<p>FODOR, J. A.; PYLYSHYN, Z. W. Connectionism and cognitive architecture: a critical analysis. <i>Cognition</i>, v. 28, n. 1-2, p. 3-71, 1988.</p></div>
+</main>
+<script src="comum.js"></script>
+<script>
+const F=['tempo','dia útil','fim de semana','país','nórdico','sul-americano','animal','doméstico','selvagem','humano','realeza','masculino','feminino','instituição','plural'];
+const base={
+'segunda':{tempo:1,'dia útil':1},'terça':{tempo:1,'dia útil':1},'quarta':{tempo:1,'dia útil':1},'quinta':{tempo:1,'dia útil':1},'sexta':{tempo:1,'dia útil':1,'fim de semana':0.3},'sábado':{tempo:1,'fim de semana':1},'domingo':{tempo:1,'fim de semana':1},
+'Suécia':{país:1,nórdico:1},'Noruega':{país:1,nórdico:1},'Dinamarca':{país:1,nórdico:0.8},'Brasil':{país:1,'sul-americano':1},'Argentina':{país:1,'sul-americano':1},'Chile':{país:1,'sul-americano':1},
+'gato':{animal:1,doméstico:1},'cão':{animal:1,doméstico:1},'lobo':{animal:1,selvagem:1},'raposa':{animal:1,selvagem:1},
+'rei':{humano:1,realeza:1,masculino:1},'rainha':{humano:1,realeza:1,feminino:1},'homem':{humano:1,masculino:1},'mulher':{humano:1,feminino:1},'príncipe':{humano:1,realeza:0.8,masculino:1},'princesa':{humano:1,realeza:0.8,feminino:1},
+'escola':{instituição:1},'escolas':{instituição:1,plural:1},'agência':{instituição:1},'agências':{instituição:1,plural:1}};
+const P=Object.keys(base); let sd=11;const r=()=>{sd=(sd*16807)%2147483647;return sd/2147483647-0.5;};
+const VEC={};P.forEach(p=>{VEC[p]=F.map(f=>(base[p][f]||0)+0.12*r());});
+const cos=(a,b)=>{let s=0,na=0,nb=0;for(let i=0;i<a.length;i++){s+=a[i]*b[i];na+=a[i]*a[i];nb+=b[i]*b[i];}return s/Math.sqrt(na*nb);};
+function opts(id,v){const s=$(id);P.forEach(p=>{const o=document.createElement('option');o.textContent=p;s.appendChild(o);});s.value=v;}
+opts('#pA','terça');opts('#pB','quarta');opts('#pV','Suécia');opts('#a1','rei');opts('#a2','homem');opts('#a3','mulher');
+function parte1(){const a=$('#pA').value,b=$('#pB').value;
+ $('#tabVet').innerHTML='<table><tr><th></th>'+F.map(f=>`<th style="font-size:.75rem">${f}</th>`).join('')+'</tr>'+[a,b].map(p=>`<tr><td><b>${p}</b></td>`+VEC[p].map(v=>`<td style="background:rgba(18,59,106,${Math.max(0,v)*0.8});color:${v>0.5?'#fff':'#1F2937'}">${fmt(v,1)}</td>`).join('')+'</tr>').join('')+'</table>';
+ $('#s1').textContent=a===b?'1':'0';$('#s2').textContent=fmt(cos(VEC[a],VEC[b]),2);}
+function parte2(){const a=$('#pV').value;const l=P.filter(p=>p!==a).map(p=>[p,cos(VEC[a],VEC[p])]).sort((x,y)=>y[1]-x[1]).slice(0,5);$('#viz').innerHTML=l.map(([p,s])=>`<li>${p} <span class="muted">(${fmt(s,2)})</span></li>`).join('');}
+function parte3(){const[a,b,c]=['#a1','#a2','#a3'].map(i=>$(i).value);const v=VEC[a].map((x,i)=>x-VEC[b][i]+VEC[c][i]);const best=P.filter(p=>![a,b,c].includes(p)).map(p=>[p,cos(v,VEC[p])]).sort((x,y)=>y[1]-x[1])[0];$('#ares').textContent=best[0]+' ('+fmt(best[1],2)+')';}
+function parte4(){const V=Math.pow(10,+$('#V').value),N=+$('#N').value;$('#vV').textContent=V.toLocaleString('pt-BR');$('#vN').textContent=N;const e=+$('#V').value*N;$('#vn').innerHTML='10<sup>'+e+'</sup>';
+ const n=+$('#nn').value;$('#vnn').textContent=n;$('#dn').textContent=Math.pow(2,n).toLocaleString('pt-BR');}
+['#pA','#pB'].forEach(i=>$(i).onchange=parte1);$('#pV').onchange=parte2;['#a1','#a2','#a3'].forEach(i=>$(i).onchange=parte3);['#V','#N','#nn'].forEach(i=>$(i).oninput=parte4);
+parte1();parte2();parte3();parte4();
+</script>
+</body></html>
